@@ -101,8 +101,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     await manager.broadcast({"type": "action", "content": "[SYSTEM]: Triggering AI turn..."})
                     from agent import graph
-                    # Execute actual LangGraph turn
-                    new_state = await asyncio.to_thread(graph.invoke, manager.state)
+                    # Execute actual LangGraph turn asynchronously
+                    new_state = await graph.ainvoke(manager.state)
                     
                     if isinstance(new_state, dict):
                         # LangGraph returned a state dict
@@ -117,6 +117,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     if len(chat_hist) >= 2:
                         monologue = chat_hist[-2]
+                        if monologue.startswith("[") and "]:" in monologue:
+                            monologue = monologue.split("]:", 1)[-1].strip()
                         dialogue = chat_hist[-1]
                     else:
                         monologue = "(Thinking...)"
@@ -137,6 +139,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         "agent_id": actual_speaker,
                         "content": dialogue
                     })
+                    
+                    # Also broadcast updated world state in case ECS changed props/location
+                    await manager.broadcast({"type": "world_update", "world": manager.state.scene.world_state.model_dump()})
                     
                     # 3. Stream tension update
                     manager.state.scene.narrative_tension = min(manager.state.scene.narrative_tension + 0.05, 1.0)
@@ -165,6 +170,19 @@ async def websocket_endpoint(websocket: WebSocket):
                         "energy": 0.9
                     }
                 })
+                
+            elif payload.get("type") == "export_script":
+                try:
+                    script_content = f"Title: {manager.state.scene.active_scene}\n\n"
+                    for line in manager.state.chat_history:
+                        if line.startswith("["): # It's a thought
+                            continue
+                        script_content += f"{line}\n\n"
+                    with open("exported_script.txt", "w") as f:
+                        f.write(script_content)
+                    await manager.broadcast({"type": "action", "content": "[SYSTEM]: Script exported successfully to backend/exported_script.txt"})
+                except Exception as e:
+                    await manager.broadcast({"type": "action", "content": f"[ERROR]: Failed to export script: {e}"})
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

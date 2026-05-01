@@ -233,6 +233,10 @@ function App() {
     wsRef.current.send(JSON.stringify({ type: "stop_scene" }));
   };
 
+  const exportScript = () => {
+    wsRef.current.send(JSON.stringify({ type: "export_script" }));
+  };
+
   const handleConfigSave = (agents) => {
     wsRef.current.send(JSON.stringify({ type: "configure_scene", agents }));
     setIsConfigOpen(false);
@@ -263,14 +267,18 @@ function App() {
             <button onClick={startScene} style={{ flex: 1 }}>Start</button>
             <button onClick={stopScene} style={{ flex: 1, background: '#ef4444' }}>Stop</button>
           </div>
-          <button 
-            onClick={nextTurn}
-            style={{
-              background: messages.length > 0 && messages[messages.length-1].content.includes("SCENE START") ? '#22c55e' : ''
-            }}
-          >
-            Next Turn
-          </button>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <button 
+              onClick={nextTurn}
+              style={{
+                flex: 2,
+                background: messages.length > 0 && messages[messages.length-1].content.includes("SCENE START") ? '#22c55e' : ''
+              }}
+            >
+              Next Turn
+            </button>
+            <button onClick={exportScript} style={{flex: 1, background: '#f59e0b', fontSize: '12px'}}>Export</button>
+          </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', marginBottom: '8px' }}>
             <input 

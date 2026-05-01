@@ -1,14 +1,17 @@
-from langgraph.graph import StateGraph, START, END
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 import os
+import asyncio
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
+
+from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.output_parsers import JsonOutputParser
 
 from state import SceneState, EmotionVector, AgentState, ModelConfig
+from memory import retrieve_memories, add_memory
 
-# Define Graph State
 class OrchestratorState(BaseModel):
     scene: SceneState
     agents: Dict[str, AgentState]
@@ -17,8 +20,6 @@ class OrchestratorState(BaseModel):
 
 def get_model(config: ModelConfig):
     api_key = config.api_key
-    
-    # Strictly ensure we have a non-empty string for the API key
     if not api_key or str(api_key).strip() == "":
         if config.provider == "openrouter":
             api_key = os.environ.get("OPENROUTER_API_KEY") or "sk-dummy-key-required"
@@ -40,24 +41,23 @@ def get_model(config: ModelConfig):
         api_key=api_key,
         model=config.model_name,
         max_retries=0,
-        timeout=45.0  # Prevent hanging forever
+        timeout=45.0
     )
 
-def director_node(state: OrchestratorState) -> OrchestratorState:
+async def director_node(state: OrchestratorState) -> OrchestratorState:
     """The Director analyzes narrative tension and assigns the next speaker."""
     print(f"[Backend] Director analyzing state... Turn {state.scene.turn_count}")
     state.scene.turn_count += 1
     
     agent_ids = list(state.agents.keys())
     
-    # Intelligent speaker selection if we have an LLM configured for it
     if len(agent_ids) > 2 and state.chat_history:
         try:
-            director_agent = state.agents[agent_ids[0]] # Just borrow an LLM config
+            director_agent = state.agents[agent_ids[0]]
             model = get_model(director_agent.llm_config)
             context = "\n".join(state.chat_history[-5:])
             prompt = f"You are the Director. The actors are: {', '.join(agent_ids)}.\nRecent conversation:\n{context}\nWho should speak next? Respond with ONLY the exact name of the character from the list."
-            res = model.invoke([HumanMessage(content=prompt)])
+            res = await model.ainvoke([HumanMessage(content=prompt)])
             suggested = res.content.strip()
             if suggested in agent_ids and suggested != state.next_speaker:
                 state.next_speaker = suggested
@@ -74,55 +74,85 @@ def director_node(state: OrchestratorState) -> OrchestratorState:
         
     return state
 
-def actor_node(state: OrchestratorState) -> OrchestratorState:
+async def generate_monologue(agent_id, agent, context, world_context):
+    try:
+        model = get_model(agent.llm_config)
+        prompt = f"You are {agent_id}. {world_context}\nRecent history:\n{context}\nWhat are you thinking right now? Keep it to one short sentence."
+        res = await model.ainvoke([HumanMessage(content=prompt)])
+        return {"agent_id": agent_id, "monologue": res.content.strip()}
+    except Exception as e:
+        print(f"[Backend] Monologue error for {agent_id}: {e}")
+        return {"agent_id": agent_id, "monologue": f"({agent_id} is thinking...)"}
+
+class ActorOutput(BaseModel):
+    dialogue: str = Field(description="The words you say out loud. Omit character name.")
+    take_prop: Optional[str] = Field(None, description="A prop ID you want to take from the world")
+    move_to: Optional[str] = Field(None, description="A new location to move to")
+
+async def actor_node(state: OrchestratorState) -> OrchestratorState:
     """The Actor generates an internal monologue followed by a public action/dialogue."""
     speaker = state.next_speaker
     agent = state.agents[speaker]
     
-    print(f"[Backend] Actor '{speaker}' preparing to generate monologue...")
-    
-    # Context
     context = "\n".join(state.chat_history[-5:]) if state.chat_history else "(Start of scene)"
-    world_context = f"Scene: {state.scene.active_scene}, Location: {state.scene.world_state.location}"
     
-    # 1. Monologue
-    mono_prompt = f"You are {speaker}. {world_context}\nRecent history:\n{context}\nWhat are you thinking right now? Keep it to one short sentence."
+    # Format props for world context
+    props_str = ", ".join([f"{p.id} (owned by {p.owner})" for p in state.scene.world_state.props])
+    world_context = f"Scene: {state.scene.active_scene}, Location: {state.scene.world_state.location}. Props available: {props_str}"
+    
+    # 1. Parallel Internal Processing
+    print("[Backend] Generating parallel monologues...")
+    tasks = [generate_monologue(aid, ag, context, world_context) for aid, ag in state.agents.items()]
+    monologues = await asyncio.gather(*tasks)
+    
+    speaker_mono = next((m["monologue"] for m in monologues if m["agent_id"] == speaker), "...")
+    
+    # 2. Episodic Memory Retrieval
+    memories = retrieve_memories(speaker, context)
+    mem_context = f"\nPast Memories:\n{memories}" if memories else ""
+    
+    # 3. ECS JSON Tool Calling
+    parser = JsonOutputParser(pydantic_object=ActorOutput)
+    format_instructions = parser.get_format_instructions()
+    
+    prompt = f"You are {speaker}. {world_context}{mem_context}\nRecent history:\n{context}\nYour internal thought: {speaker_mono}\n\n{format_instructions}\nProvide your next action. Output strictly valid JSON."
+    
+    print(f"[Backend] Actor '{speaker}' generating dialogue + ECS action...")
     try:
         model = get_model(agent.llm_config)
-        print(f"[Backend] Sending request to {agent.llm_config.provider} at {agent.llm_config.base_url}...")
-        mono_res = model.invoke([HumanMessage(content=mono_prompt)])
-        monologue = mono_res.content.strip()
-        print(f"[Backend] Received monologue: {monologue}")
-    except Exception as e:
-        print(f"[Backend] Model error during monologue: {e}")
-        monologue = f"({speaker} is lost in thought...)"
+        dia_res = await model.ainvoke([HumanMessage(content=prompt)])
+        parsed = parser.invoke(dia_res.content)
         
-    # 2. Dialogue
-    print(f"[Backend] Actor '{speaker}' preparing to generate dialogue...")
-    dialogue_prompt = f"You are {speaker}. {world_context}\nRecent history:\n{context}\nYour internal thought: {monologue}\nSay your next line of dialogue. Format as 'CharacterName: dialogue'."
-    try:
-        model = get_model(agent.llm_config)
-        dia_res = model.invoke([HumanMessage(content=dialogue_prompt)])
-        dialogue = dia_res.content.strip()
+        dialogue = parsed.get("dialogue", "...")
         if not dialogue.startswith(speaker):
             dialogue = f"{speaker}: {dialogue}"
-        print(f"[Backend] Received dialogue: {dialogue}")
+            
+        if parsed.get("take_prop"):
+            prop_id = parsed["take_prop"]
+            for p in state.scene.world_state.props:
+                if p.id == prop_id:
+                    p.owner = speaker
+                    print(f"[Backend] ECS: {speaker} took {prop_id}")
+                    
+        if parsed.get("move_to"):
+            state.scene.world_state.location = parsed["move_to"]
+            print(f"[Backend] ECS: Scene moved to {parsed['move_to']}")
+            
+        add_memory(speaker, dialogue)
+        
     except Exception as e:
-        print(f"[Backend] Model error during dialogue: {e}")
+        print(f"[Backend] Model error during dialogue/ECS: {e}")
         dialogue = f"{speaker}: ... (silence)"
     
-    # Use a temporary attribute to pass these specific generated values back easily
-    # LangGraph states are immutable pydantic models in some contexts, but we can update chat_history
-    # Make sure we don't just mutate, but explicitly assign if needed
     new_chat_history = list(state.chat_history)
-    new_chat_history.append(monologue)
+    new_chat_history.append(f"[{speaker}'s Thought]: {speaker_mono}")
     new_chat_history.append(dialogue)
     state.chat_history = new_chat_history
     
     print(f"[Backend] Actor '{speaker}' completed turn.")
     return state
 
-# Build Graph - 1 turn per invocation
+# Build Graph
 builder = StateGraph(OrchestratorState)
 builder.add_node("director", director_node)
 builder.add_node("actor", actor_node)
@@ -131,14 +161,20 @@ builder.add_edge(START, "director")
 builder.add_edge("director", "actor")
 builder.add_edge("actor", END)
 
-# Compile the graph
 graph = builder.compile()
 
 from state import WorldState, Prop
 initial_state = OrchestratorState(
     scene=SceneState(
         active_scene="The Disastrous Dinner Party",
-        world_state=WorldState(location="Formal Dining Room", lighting="Candlelight", props=[]),
+        world_state=WorldState(
+            location="Formal Dining Room", 
+            lighting="Candlelight", 
+            props=[
+                Prop(id="poisoned_wine", owner="Character_A", visibility="hidden"),
+                Prop(id="silver_spoon", owner="Character_B", visibility="visible")
+            ]
+        ),
         narrative_tension=0.5,
         turn_count=0
     ),
@@ -149,6 +185,3 @@ initial_state = OrchestratorState(
     chat_history=[],
     next_speaker=""
 )
-
-if __name__ == "__main__":
-    print("Graph Compiled Successfully!")
