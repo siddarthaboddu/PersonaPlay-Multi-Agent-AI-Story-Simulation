@@ -3,14 +3,14 @@ import { useState, useEffect, useRef } from 'react'
 function ConfigModal({ isOpen, onClose, onSave, onTest, testResults }) {
   const [agents, setAgents] = useState([
     {
-      id: "Character_A",
-      hidden_agenda: "Wants to steal the silver spoon",
+      id: "Alex",
+      hidden_agenda: "Wants to convince Jamie to skip college and drive to Mexico. Secretly terrified of growing up.",
       model_config: { provider: "lm_studio", base_url: "http://localhost:1234/v1", model_name: "local-model", api_key: "" }
     },
     {
-      id: "Character_B",
-      hidden_agenda: "Is deeply suspicious of everyone",
-      model_config: { provider: "openrouter", base_url: "https://openrouter.ai/api/v1", model_name: "google/gemini-1.5-pro", api_key: "" }
+      id: "Jamie",
+      hidden_agenda: "Just realized the mysterious duffel bag in the back belongs to a dangerous cartel. Wants to get home immediately without panicking Alex.",
+      model_config: { provider: "lm_studio", base_url: "http://localhost:1234/v1", model_name: "local-model", api_key: "" }
     }
   ]);
 
@@ -131,6 +131,7 @@ function App() {
   const [testResults, setTestResults] = useState({});
   const [isAutoPlay, setIsAutoPlay] = useState(false);
   const [worldState, setWorldState] = useState({ location: "Unknown", lighting: "Unknown", props: [] });
+  const [agentsStatus, setAgentsStatus] = useState([]);
   const [isTTSEnabled, setIsTTSEnabled] = useState(false);
   const [sceneInput, setSceneInput] = useState("");
   
@@ -178,6 +179,13 @@ function App() {
         setMonologues(prev => [...prev, data]);
       } else if (data.type === "world_update") {
         setWorldState(data.world);
+      } else if (data.type === "agents_update") {
+        setAgentsStatus(data.agents);
+      } else if (data.type === "image_update") {
+        setMessages(prev => [...prev, { type: "image", url: data.url, prompt: data.prompt }]);
+      } else if (data.type === "history_reset") {
+        setMessages(data.messages);
+        setMonologues(data.monologues);
       } else if (data.type === "vitals_update") {
         setVitals(data.vitals);
         
@@ -233,6 +241,11 @@ function App() {
     wsRef.current.send(JSON.stringify({ type: "stop_scene" }));
   };
 
+  const pauseScene = () => {
+    setIsAutoPlay(false);
+    setMessages(prev => [...prev, { type: "action", content: "[SYSTEM]: ⏸️ Auto-play paused. Current turn will finish." }]);
+  };
+
   const exportScript = () => {
     wsRef.current.send(JSON.stringify({ type: "export_script" }));
   };
@@ -265,6 +278,7 @@ function App() {
           <hr style={{borderColor: 'rgba(255,255,255,0.1)', margin: '8px 0'}}/>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <button onClick={startScene} style={{ flex: 1 }}>Start</button>
+            <button onClick={pauseScene} style={{ flex: 1, background: '#f59e0b' }}>Pause</button>
             <button onClick={stopScene} style={{ flex: 1, background: '#ef4444' }}>Stop</button>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -277,6 +291,7 @@ function App() {
             >
               Next Turn
             </button>
+            <button onClick={() => wsRef.current.send(JSON.stringify({ type: "rewind_turns", turns: 3 }))} style={{flex: 1, background: '#6366f1', fontSize: '12px'}}>⏪ Rewind</button>
             <button onClick={exportScript} style={{flex: 1, background: '#f59e0b', fontSize: '12px'}}>Export</button>
           </div>
           
@@ -310,10 +325,44 @@ function App() {
              <div style={{color: '#94a3b8', marginTop: '4px'}}>Props:</div>
              <ul style={{margin: '0 0 0 16px', padding: 0}}>
                 {worldState.props.length === 0 ? <li style={{color: '#94a3b8'}}>None</li> : worldState.props.map(p => (
-                   <li key={p.id}>{p.id} ({p.visibility}) - {p.owner}</li>
+                   <li key={p.id} style={{display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px'}}>
+                      <span style={{color: '#fde047'}}>{p.id.replace('_', ' ')}</span>
+                      <select 
+                        value={p.owner} 
+                        onChange={e => wsRef.current.send(JSON.stringify({ type: "force_give_prop", prop_id: p.id, owner: e.target.value }))}
+                        style={{marginLeft: 'auto', padding: '2px', fontSize: '10px', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '4px'}}
+                      >
+                        <option value="Nobody">Nobody</option>
+                        {agentsStatus.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
+                      </select>
+                   </li>
                 ))}
              </ul>
           </div>
+          
+          {agentsStatus.length > 0 && (
+            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', marginBottom: '8px', fontSize: '13px' }}>
+              <div style={{fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px'}}>Sims Character Status</div>
+              {agentsStatus.map((agent, i) => (
+                <div key={i} style={{ marginBottom: '12px' }}>
+                  <strong style={{ display: 'block', marginBottom: '4px', color: '#f8fafc', fontSize: '11px' }}>{agent.id}</strong>
+                  {['tension', 'energy', 'affection', 'suspicion'].map(stat => (
+                    <div key={stat} style={{ display: 'flex', alignItems: 'center', fontSize: '10px', marginBottom: '2px' }}>
+                      <div style={{ width: '55px', textTransform: 'capitalize', color: '#cbd5e1' }}>{stat}</div>
+                      <div style={{ flex: 1, background: '#1e293b', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${Math.max(0, Math.min(100, agent.emotions[stat] * 100))}%`, 
+                          height: '100%', 
+                          background: stat === 'energy' ? '#22c55e' : stat === 'tension' ? '#ef4444' : stat === 'affection' ? '#ec4899' : '#eab308',
+                          transition: 'width 0.5s ease-in-out'
+                        }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
           
           <form onSubmit={handleSceneChange} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
              <input type="text" placeholder="New Location..." value={sceneInput} onChange={e => setSceneInput(e.target.value)} style={{flex: 1, padding: '6px', fontSize: '12px'}} />
@@ -335,11 +384,46 @@ function App() {
       {/* Center Panel */}
       <div className="panel theater-panel">
         <div className="panel-header">Theater View</div>
+        
+        {/* Animated Blocking 2D Stage */}
+        <div style={{ height: '120px', background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '10px', left: '10px', fontSize: '10px', color: '#64748b', letterSpacing: '2px', textTransform: 'uppercase' }}>STAGE: {worldState.location}</div>
+          {agentsStatus.map((agent, i) => {
+            const left = 20 + ((i * 35) % 60) + (agent.emotions.energy * 20);
+            const top = 30 + ((i * 15) % 40) + (agent.emotions.tension * 20);
+            return (
+              <div key={agent.id} style={{ 
+                position: 'absolute', 
+                left: `${left}%`, 
+                top: `${top}%`, 
+                width: '32px', height: '32px', 
+                borderRadius: '50%', background: '#3b82f6', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                fontSize: '12px', fontWeight: 'bold', color: 'white',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                transition: 'all 0.8s ease-in-out',
+                border: messages.length > 0 && messages[messages.length-1].agent_id === agent.id ? '2px solid #fbbf24' : '2px solid transparent'
+              }}>
+                {agent.id.substring(0, 2).toUpperCase()}
+              </div>
+            );
+          })}
+        </div>
+
         <div className="script-feed" ref={scriptRef}>
           {messages.map((msg, i) => (
             <div key={i} className="script-line">
-              {msg.agent_id && <span className="speaker">{msg.agent_id}: </span>}
-              <span>{msg.content}</span>
+              {msg.type === "image" ? (
+                <div style={{margin: '12px 0'}}>
+                   <div style={{fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', marginBottom: '4px'}}>🎬 Scene Render: {msg.prompt}</div>
+                   <img src={msg.url} alt="Scene rendering" style={{width: '100%', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)'}} />
+                </div>
+              ) : (
+                <>
+                  {msg.agent_id && <span className="speaker">{msg.agent_id}: </span>}
+                  <span>{msg.content}</span>
+                </>
+              )}
             </div>
           ))}
         </div>

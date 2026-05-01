@@ -85,7 +85,7 @@ async def generate_monologue(agent_id, agent, context, world_context):
         return {"agent_id": agent_id, "monologue": f"({agent_id} is thinking...)"}
 
 class ActorOutput(BaseModel):
-    dialogue: str = Field(description="The words you say out loud. Omit character name.")
+    dialogue: str = Field(description="The words you say out loud. You MUST use many emojis/emoticons (e.g., 😭, 😡, 😳, 😅) to express your intense feelings. Omit character name.")
     take_prop: Optional[str] = Field(None, description="A prop ID you want to take from the world")
     move_to: Optional[str] = Field(None, description="A new location to move to")
 
@@ -138,6 +138,11 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
             state.scene.world_state.location = parsed["move_to"]
             print(f"[Backend] ECS: Scene moved to {parsed['move_to']}")
             
+        import random
+        agent.emotions.energy = max(0.0, agent.emotions.energy - random.uniform(0.01, 0.05))
+        agent.emotions.tension = max(0.0, min(1.0, agent.emotions.tension + random.uniform(-0.1, 0.15)))
+        agent.emotions.suspicion = max(0.0, min(1.0, agent.emotions.suspicion + random.uniform(-0.05, 0.1)))
+        
         add_memory(speaker, dialogue)
         
     except Exception as e:
@@ -164,24 +169,35 @@ builder.add_edge("actor", END)
 graph = builder.compile()
 
 from state import WorldState, Prop
+# Default Roster Setup
 initial_state = OrchestratorState(
     scene=SceneState(
-        active_scene="The Disastrous Dinner Party",
+        active_scene="The Secret Road Trip",
         world_state=WorldState(
-            location="Formal Dining Room", 
-            lighting="Candlelight", 
+            location="A Cluttered Minivan",
+            lighting="Flashing Streetlights",
             props=[
-                Prop(id="poisoned_wine", owner="Character_A", visibility="hidden"),
-                Prop(id="silver_spoon", owner="Character_B", visibility="visible")
+                Prop(id="mysterious_duffel_bag", owner="Alex", visibility="visible"),
+                Prop(id="half_eaten_pizza", owner="Jamie", visibility="visible")
             ]
         ),
-        narrative_tension=0.5,
+        narrative_tension=0.6,
         turn_count=0
     ),
     agents={
-        "Character_A": AgentState(id="Character_A", emotions=EmotionVector(tension=0.5, affection=0.5, energy=0.8, suspicion=0.2)),
-        "Character_B": AgentState(id="Character_B", emotions=EmotionVector(tension=0.8, affection=0.2, energy=0.5, suspicion=0.9))
+        "Alex": AgentState(
+            id="Alex",
+            hidden_agenda="Wants to convince Jamie to skip college and drive to Mexico. Secretly terrified of growing up.",
+            emotions=EmotionVector(tension=0.6, affection=0.8, energy=0.9, suspicion=0.2),
+            llm_config=ModelConfig(provider="lm_studio", base_url="http://localhost:1234/v1", model_name="local-model")
+        ),
+        "Jamie": AgentState(
+            id="Jamie",
+            hidden_agenda="Just realized the mysterious duffel bag in the back belongs to a dangerous cartel. Wants to get home immediately without panicking Alex.",
+            emotions=EmotionVector(tension=0.9, affection=0.7, energy=0.5, suspicion=0.9),
+            llm_config=ModelConfig(provider="lm_studio", base_url="http://localhost:1234/v1", model_name="local-model")
+        )
     },
     chat_history=[],
-    next_speaker=""
+    next_speaker="Alex"
 )

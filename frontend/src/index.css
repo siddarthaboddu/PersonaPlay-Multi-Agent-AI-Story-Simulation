@@ -45,6 +45,7 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
 .panel-header {
@@ -62,6 +63,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 6px;
 }
 
 input, button {
