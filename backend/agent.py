@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 import os
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from state import SceneState, EmotionVector, AgentState, ModelConfig
 
@@ -21,8 +22,18 @@ def get_model(config: ModelConfig):
     if not api_key or str(api_key).strip() == "":
         if config.provider == "openrouter":
             api_key = os.environ.get("OPENROUTER_API_KEY") or "sk-dummy-key-required"
+        elif config.provider == "google":
+            api_key = os.environ.get("GOOGLE_API_KEY") or "sk-dummy-key-required"
         else:
             api_key = "lm-studio"
+            
+    if config.provider == "google":
+        return ChatGoogleGenerativeAI(
+            model=config.model_name,
+            google_api_key=api_key,
+            max_retries=0,
+            timeout=45.0
+        )
             
     return ChatOpenAI(
         base_url=config.base_url,
@@ -37,8 +48,24 @@ def director_node(state: OrchestratorState) -> OrchestratorState:
     print(f"[Backend] Director analyzing state... Turn {state.scene.turn_count}")
     state.scene.turn_count += 1
     
-    # Simple round robin for MVP, but you could use pro_model here to choose
     agent_ids = list(state.agents.keys())
+    
+    # Intelligent speaker selection if we have an LLM configured for it
+    if len(agent_ids) > 2 and state.chat_history:
+        try:
+            director_agent = state.agents[agent_ids[0]] # Just borrow an LLM config
+            model = get_model(director_agent.llm_config)
+            context = "\n".join(state.chat_history[-5:])
+            prompt = f"You are the Director. The actors are: {', '.join(agent_ids)}.\nRecent conversation:\n{context}\nWho should speak next? Respond with ONLY the exact name of the character from the list."
+            res = model.invoke([HumanMessage(content=prompt)])
+            suggested = res.content.strip()
+            if suggested in agent_ids and suggested != state.next_speaker:
+                state.next_speaker = suggested
+                print(f"[Backend] Director intelligently selected: {suggested}")
+                return state
+        except Exception as e:
+            print(f"[Backend] Director LLM error: {e}")
+    
     if not state.next_speaker or state.next_speaker not in agent_ids:
         state.next_speaker = agent_ids[0]
     else:

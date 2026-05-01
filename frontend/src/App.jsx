@@ -20,12 +20,16 @@ function ConfigModal({ isOpen, onClose, onSave, onTest, testResults }) {
     const newAgents = [...agents];
     if (field === 'model_config.provider') {
       newAgents[index].model_config.provider = value;
-      newAgents[index].model_config.base_url = value === 'lm_studio' 
-        ? "http://localhost:1234/v1" 
-        : "https://openrouter.ai/api/v1";
-      newAgents[index].model_config.model_name = value === 'lm_studio'
-        ? "local-model"
-        : "google/gemini-1.5-pro";
+      if (value === 'lm_studio') {
+        newAgents[index].model_config.base_url = "http://localhost:1234/v1";
+        newAgents[index].model_config.model_name = "local-model";
+      } else if (value === 'openrouter') {
+        newAgents[index].model_config.base_url = "https://openrouter.ai/api/v1";
+        newAgents[index].model_config.model_name = "google/gemini-1.5-pro";
+      } else if (value === 'google') {
+        newAgents[index].model_config.base_url = "";
+        newAgents[index].model_config.model_name = "gemini-1.5-pro-latest";
+      }
     } else if (field.startsWith('model_config.')) {
       const configField = field.split('.')[1];
       newAgents[index].model_config[configField] = value;
@@ -87,6 +91,7 @@ function ConfigModal({ isOpen, onClose, onSave, onTest, testResults }) {
               >
                 <option value="lm_studio">LM Studio (Local)</option>
                 <option value="openrouter">OpenRouter (Cloud)</option>
+                <option value="google">Google GenAI (Native)</option>
               </select>
               <input 
                 type="text" 
@@ -125,25 +130,54 @@ function App() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [testResults, setTestResults] = useState({});
   const [isAutoPlay, setIsAutoPlay] = useState(false);
+  const [worldState, setWorldState] = useState({ location: "Unknown", lighting: "Unknown", props: [] });
+  const [isTTSEnabled, setIsTTSEnabled] = useState(false);
+  const [sceneInput, setSceneInput] = useState("");
   
   const wsRef = useRef(null);
   const scriptRef = useRef(null);
   const monoRef = useRef(null);
   const autoPlayRef = useRef(isAutoPlay);
+  const ttsRef = useRef(isTTSEnabled);
 
   useEffect(() => {
     autoPlayRef.current = isAutoPlay;
   }, [isAutoPlay]);
 
   useEffect(() => {
+    ttsRef.current = isTTSEnabled;
+  }, [isTTSEnabled]);
+
+  const speakText = (text, characterName) => {
+    if (!('speechSynthesis' in window) || !ttsRef.current) return;
+    const cleanText = text.replace(/\[.*?\]/g, '').trim();
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const hash = characterName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    utterance.pitch = 0.8 + ((hash % 10) / 20); // 0.8 to 1.3
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  useEffect(() => {
     wsRef.current = new WebSocket("ws://localhost:8000/ws");
+    
+    wsRef.current.onopen = () => {
+        wsRef.current.send(JSON.stringify({ type: "get_state" }));
+    };
     
     wsRef.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "dialogue" || data.type === "action") {
         setMessages(prev => [...prev, data]);
+        if (data.type === "dialogue") {
+            speakText(data.content, data.agent_id || "Unknown");
+        }
       } else if (data.type === "monologue") {
         setMonologues(prev => [...prev, data]);
+      } else if (data.type === "world_update") {
+        setWorldState(data.world);
       } else if (data.type === "vitals_update") {
         setVitals(data.vitals);
         
@@ -177,6 +211,13 @@ function App() {
     wsRef.current.send(JSON.stringify({ type: "director_command", command }));
     setMessages(prev => [...prev, { type: "action", content: `[DIRECTOR INJECTS]: ${command}` }]);
     setCommand("");
+  };
+
+  const handleSceneChange = (e) => {
+    e.preventDefault();
+    if (!sceneInput.trim()) return;
+    wsRef.current.send(JSON.stringify({ type: "change_scene", location: sceneInput }));
+    setSceneInput("");
   };
 
   const startScene = () => {
@@ -241,6 +282,35 @@ function App() {
             />
             <label htmlFor="autoPlay" style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', cursor: 'pointer' }}>Auto-Play Scene</label>
           </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', marginBottom: '8px' }}>
+            <input 
+              type="checkbox" 
+              id="ttsEnable" 
+              checked={isTTSEnabled} 
+              onChange={e => setIsTTSEnabled(e.target.checked)} 
+              style={{ cursor: 'pointer' }}
+            />
+            <label htmlFor="ttsEnable" style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', cursor: 'pointer' }}>Enable TTS (Voice)</label>
+          </div>
+          
+          {/* World State UI */}
+          <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', marginBottom: '8px', fontSize: '13px' }}>
+             <div style={{fontWeight: 'bold', color: '#fbbf24', marginBottom: '4px'}}>Current World</div>
+             <div><span style={{color: '#94a3b8'}}>Location:</span> {worldState.location}</div>
+             <div><span style={{color: '#94a3b8'}}>Lighting:</span> {worldState.lighting}</div>
+             <div style={{color: '#94a3b8', marginTop: '4px'}}>Props:</div>
+             <ul style={{margin: '0 0 0 16px', padding: 0}}>
+                {worldState.props.length === 0 ? <li style={{color: '#94a3b8'}}>None</li> : worldState.props.map(p => (
+                   <li key={p.id}>{p.id} ({p.visibility}) - {p.owner}</li>
+                ))}
+             </ul>
+          </div>
+          
+          <form onSubmit={handleSceneChange} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+             <input type="text" placeholder="New Location..." value={sceneInput} onChange={e => setSceneInput(e.target.value)} style={{flex: 1, padding: '6px', fontSize: '12px'}} />
+             <button type="submit" style={{padding: '6px 10px', fontSize: '12px'}}>Move</button>
+          </form>
 
           <form onSubmit={sendCommand} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
             <input 

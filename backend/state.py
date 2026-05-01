@@ -24,7 +24,7 @@ class SceneState(BaseModel):
     turn_count: int
 
 class ModelConfig(BaseModel):
-    provider: Literal["lm_studio", "openrouter"] = "lm_studio"
+    provider: Literal["lm_studio", "openrouter", "google"] = "lm_studio"
     base_url: str = "http://localhost:1234/v1"
     model_name: str = "local-model"
     api_key: Optional[str] = None

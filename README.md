@@ -82,9 +82,22 @@ PersonaPlay/
 
 ---
 
-## 🔮 Future Roadmap (WIP)
+## 🔮 Future Roadmap & Architectural Vision
+
+### Phase 1: Core Engine & UI (Completed)
 *   [x] MVP Boilerplate & Environment Setup
-*   [ ] React "Three-Column Dashboard" Implementation
-*   [ ] Real-time WebSocket Streaming Integration
-*   [ ] Full Gemini LLM integration with Dual-Stream Prompting
-*   [ ] Text-to-Speech (TTS) Integration
+*   [x] React "Three-Column Dashboard" Implementation
+*   [x] Real-time WebSocket Streaming & World State Sync
+*   [x] Provider-Agnostic LLM Integration (LM Studio, OpenRouter, etc.)
+*   [x] Browser-native Text-to-Speech (TTS) for Dynamic Dialogue
+*   [x] Intelligent Director Node (Context-aware speaker selection)
+
+### Phase 2: Open-Source Optimized Cognitive Architecture (Upcoming)
+*   [ ] **Vector Episodic Memory (RAG):** Integrate an open-source vector store (ChromaDB) and standard LangChain retrieval chains to transition from a sliding-window context to semantic recall, ensuring complete compatibility with local LM Studio embeddings and models.
+*   [ ] **Parallel Internal Processing:** Refactor the LangGraph orchestration to allow all actors to generate their "Internal Monologue" *asynchronously*. We will leverage native LangChain `RunnableParallel` primitives to reduce latency without relying on proprietary batching APIs.
+*   [ ] **Local-Model-Friendly ECS Engine:** Upgrade the basic JSON state into a rigorous Entity-Component-System. Instead of forcing proprietary Tool Calling APIs, we will use robust LangChain output parsers (like generic ReAct prompts or structured JSON extractors) so even smaller open-source models (e.g., Llama 3 8B via LM Studio) can reliably manipulate props and move locations.
+
+### Phase 3: Observability & Export
+*   [ ] **Best-in-Class Telemetry (LangSmith):** Integrate LangSmith for enterprise-grade observability. Even when using local models via LM Studio or cloud models via OpenRouter, LangSmith provides the most robust tracing for LangGraph execution paths, token latency, and deep prompt debugging.
+*   [ ] **Local VLM Sensory Plane:** Enable Vision-Language Models (like LLaVA running locally on LM Studio, or Gemini 1.5 Pro via OpenRouter) to accept visual context (e.g., stage layouts) into the Director's state evaluation.
+*   [ ] **Screenplay Export Pipeline:** Add automated formatting to export the finalized generative theater session into industry-standard Fountain/PDF screenplay formats.

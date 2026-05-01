@@ -49,6 +49,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 manager.state.next_speaker = list(manager.state.agents.keys())[0] if manager.state.agents else "Narrator"
                 await manager.broadcast({"type": "action", "content": f"[SCENE START]: {manager.state.scene.active_scene}"})
                 await manager.broadcast({"type": "action", "content": "[SYSTEM]: Stage is set. Click the 'Next Turn' button to trigger the first actor!"})
+                await manager.broadcast({"type": "world_update", "world": manager.state.scene.world_state.model_dump()})
+            
+            elif payload.get("type") == "get_state":
+                await websocket.send_json({"type": "world_update", "world": manager.state.scene.world_state.model_dump()})
+                
+            elif payload.get("type") == "change_scene":
+                new_location = payload.get("location")
+                new_scene = payload.get("scene_name")
+                if new_location: manager.state.scene.world_state.location = new_location
+                if new_scene: manager.state.scene.active_scene = new_scene
+                await manager.broadcast({"type": "action", "content": f"[SCENE CHANGE]: Moved to {manager.state.scene.world_state.location}."})
+                await manager.broadcast({"type": "world_update", "world": manager.state.scene.world_state.model_dump()})
             
             elif payload.get("type") == "stop_scene":
                 await manager.broadcast({"type": "action", "content": "[SYSTEM]: 🛑 Simulation forcibly stopped."})
