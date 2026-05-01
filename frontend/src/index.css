@@ -39,6 +39,7 @@ body {
   display: grid;
   grid-template-rows: 52px 1fr;
   height: 100vh;
+  min-height: 0;
 }
 
 .topbar {
@@ -111,6 +112,7 @@ body {
   padding: 12px;
   overflow: hidden;
   height: 100%;
+  min-height: 0;
 }
 
 /* ── Panels ── */
@@ -124,6 +126,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .panel::before {
@@ -162,10 +165,12 @@ body {
 .panel-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
 }
 
 /* ── Buttons ── */
