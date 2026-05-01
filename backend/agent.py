@@ -100,10 +100,8 @@ def get_model(config: ModelConfig, creative: bool = False):
     if creative:
         # High temp + presence/frequency penalties = diverse, non-repetitive output
         kwargs["temperature"] = 0.85
-        kwargs["model_kwargs"] = {
-            "presence_penalty": 0.7,   # penalises tokens that already appeared in context
-            "frequency_penalty": 0.5,  # penalises tokens proportional to how often they appeared
-        }
+        kwargs["presence_penalty"]  = 0.7   # penalises tokens already in context
+        kwargs["frequency_penalty"] = 0.5   # penalises tokens by how often they appeared
     else:
         kwargs["temperature"] = 0.3   # low temp for structured tasks like director selection
     return ChatOpenAI(**kwargs)

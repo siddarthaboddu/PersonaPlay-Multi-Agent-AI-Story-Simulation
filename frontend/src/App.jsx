@@ -1,391 +1,393 @@
 import { useState, useEffect, useRef } from 'react'
 
-// ── Colour palette per character index ──────────────────────────────
-const CHAR_COLORS = ['#8b5cf6','#06b6d4','#ec4899','#f59e0b','#22c55e','#ef4444']
-const charColor = (i) => CHAR_COLORS[i % CHAR_COLORS.length]
+const COLORS = ['#a78bfa','#67e8f9','#f9a8d4','#fcd34d','#4ade80','#fc8181','#fb923c']
+const cc = i => COLORS[i % COLORS.length]
 
-// ── Config Modal ─────────────────────────────────────────────────────
-function ConfigModal({ isOpen, onClose, onSave, onTest, testResults }) {
+const BEATS = [
+  [0,3,'COLD OPEN'],   [4,7,'STATUS QUO'],    [8,12,'FIRST FRICTION'],
+  [13,18,'ESCALATION'],[19,25,'COMPLICATION'],[26,32,'CONFRONTATION'],
+  [33,40,'REVELATION'],[41,48,'POWER SHIFT'], [49,58,'CRISIS POINT'],
+  [59,68,'CLIMAX I'],  [69,80,'CLIMAX II'],   [81,92,'BREAKING POINT'],
+  [93,105,'FALLING ACTION'],[106,120,'RECKONING'],[121,135,'UNEASY PEACE'],
+  [136,155,'NEW COMPLICATION'],[156,175,'SECOND ARC'],[176,200,'SECOND CLIMAX'],
+  [201,999,'EPILOGUE'],
+]
+const getBeat = t => BEATS.find(([s,e])=>t>=s&&t<=e) || BEATS[BEATS.length-1]
+const getBeatProgress = t => { const [s,e]=getBeat(t); return Math.min(1,(t-s)/(e-s+1)) }
+
+function Badge({id, results}) {
+  const s = results[id]
+  if (!s)                   return <span className="badge idle">Idle</span>
+  if (s.status==='loading') return <span className="badge load">Testing…</span>
+  if (s.status==='ok')      return <span className="badge ok">✓ Live</span>
+  return <span className="badge err">✗ Error</span>
+}
+
+function ConfigModal({isOpen, onClose, onSave, onTest, testResults}) {
   const [agents, setAgents] = useState([
-    { id: "Alex", hidden_agenda: "Wants to convince Jamie to skip college and drive to Mexico. Secretly terrified of growing up.", model_config: { provider: "lm_studio", base_url: "http://localhost:1234/v1", model_name: "local-model", api_key: "" } },
-    { id: "Jamie", hidden_agenda: "Just realized the mysterious duffel bag in the back belongs to a dangerous cartel. Wants to get home immediately without panicking Alex.", model_config: { provider: "lm_studio", base_url: "http://localhost:1234/v1", model_name: "local-model", api_key: "" } }
+    {id:'Alex',  hidden_agenda:"Wants to convince Jamie to skip college and drive to Mexico. Secretly terrified of growing up.", model_config:{provider:'lm_studio',base_url:'http://localhost:1234/v1',model_name:'local-model',api_key:''}},
+    {id:'Jamie', hidden_agenda:"Just realized the mysterious duffel bag in the back belongs to a dangerous cartel. Wants to get home immediately without panicking Alex.", model_config:{provider:'lm_studio',base_url:'http://localhost:1234/v1',model_name:'local-model',api_key:''}},
   ])
-
   if (!isOpen) return null
 
-  const handleChange = (i, field, value) => {
+  const mutate = (i,f,v) => {
     const a = [...agents]
-    if (field === 'model_config.provider') {
-      a[i].model_config.provider = value
-      if (value === 'lm_studio') { a[i].model_config.base_url = "http://localhost:1234/v1"; a[i].model_config.model_name = "local-model" }
-      else if (value === 'openrouter') { a[i].model_config.base_url = "https://openrouter.ai/api/v1"; a[i].model_config.model_name = "google/gemini-1.5-pro" }
-      else if (value === 'google') { a[i].model_config.base_url = ""; a[i].model_config.model_name = "gemini-1.5-pro-latest" }
-    } else if (field.startsWith('model_config.')) {
-      a[i].model_config[field.split('.')[1]] = value
-    } else { a[i][field] = value }
+    if (['provider','model_name','base_url','api_key'].includes(f)) {
+      a[i].model_config[f] = v
+      if (f==='provider') {
+        if (v==='lm_studio')  {a[i].model_config.base_url='http://localhost:1234/v1'; a[i].model_config.model_name='local-model'}
+        if (v==='openrouter') {a[i].model_config.base_url='https://openrouter.ai/api/v1'; a[i].model_config.model_name='google/gemini-1.5-pro'}
+        if (v==='google')     {a[i].model_config.base_url=''; a[i].model_config.model_name='gemini-1.5-pro-latest'}
+      }
+    } else a[i][f]=v
     setAgents(a)
   }
 
-  const statusBadge = (id) => {
-    const s = testResults[id]
-    if (!s) return <span className="char-status-badge badge-idle">Idle</span>
-    if (s.status === 'loading') return <span className="char-status-badge badge-loading">Testing…</span>
-    if (s.status === 'ok') return <span className="char-status-badge badge-ok">✓ Connected</span>
-    return <span className="char-status-badge badge-err">✗ Error</span>
-  }
-
   return (
-    <div className="modal-overlay">
+    <div className="overlay">
       <div className="modal">
-        <div className="modal-title">🎭 Actor Roster</div>
-        {agents.map((ag, i) => (
-          <div key={i} className="char-card">
-            <div className="char-card-header">
-              <div style={{ width:24, height:24, borderRadius:'50%', background: charColor(i), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'white', flexShrink:0 }}>
+        <div className="mtitle">🎭 Actor Roster & LLM Config</div>
+        {agents.map((ag,i)=>(
+          <div key={i} className="ccard">
+            <div className="chead">
+              <div style={{width:30,height:30,borderRadius:'50%',background:cc(i),display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:'#fff',fontFamily:'JetBrains Mono,monospace',flexShrink:0}}>
                 {ag.id.substring(0,2).toUpperCase()}
               </div>
-              <input type="text" placeholder="Character name" value={ag.id} onChange={e => handleChange(i,'id',e.target.value)} style={{flex:1, marginBottom:0}} />
-              <button onClick={() => onTest(ag.id, ag.model_config)} className="btn-ghost" style={{width:'auto', padding:'5px 12px', flexShrink:0}}>Test</button>
-              {statusBadge(ag.id)}
+              <input type="text" value={ag.id} onChange={e=>mutate(i,'id',e.target.value)} placeholder="Name" style={{flex:1,marginBottom:0}}/>
+              <button className="btn-test" onClick={()=>onTest(ag.id,ag.model_config)}>Test</button>
+              <Badge id={ag.id} results={testResults}/>
             </div>
-            {testResults[ag.id]?.status === 'error' && <div style={{color:'#ef4444', fontSize:11, marginBottom:8, padding:'4px 8px', background:'rgba(239,68,68,0.08)', borderRadius:6}}>{testResults[ag.id].message}</div>}
-            <input type="text" placeholder="🕵️ Hidden Agenda (the AI uses this privately)" value={ag.hidden_agenda} onChange={e => handleChange(i,'hidden_agenda',e.target.value)} />
-            <div style={{display:'flex', gap:8}}>
-              <select value={ag.model_config.provider} onChange={e => handleChange(i,'model_config.provider',e.target.value)} style={{flex:1}}>
+            {testResults[ag.id]?.status==='error' && <div style={{fontSize:12,color:'#fc8181',padding:'6px 10px',background:'rgba(252,129,129,.08)',borderRadius:6,marginBottom:8}}>{testResults[ag.id].message}</div>}
+            <input type="text"     value={ag.hidden_agenda}               onChange={e=>mutate(i,'hidden_agenda',e.target.value)} placeholder="🕵 Hidden agenda (the AI uses this secretly)"/>
+            <div className="crow2">
+              <select value={ag.model_config.provider} onChange={e=>mutate(i,'provider',e.target.value)} style={{flex:'0 0 155px'}}>
                 <option value="lm_studio">LM Studio (Local)</option>
                 <option value="openrouter">OpenRouter (Cloud)</option>
                 <option value="google">Google GenAI</option>
               </select>
-              <input type="text" placeholder="Model" value={ag.model_config.model_name} onChange={e => handleChange(i,'model_config.model_name',e.target.value)} style={{flex:1}} />
+              <input type="text" value={ag.model_config.model_name} onChange={e=>mutate(i,'model_name',e.target.value)} placeholder="Model name"/>
             </div>
-            <input type="password" placeholder="API Key (optional)" value={ag.model_config.api_key} onChange={e => handleChange(i,'model_config.api_key',e.target.value)} />
+            <input type="password" value={ag.model_config.api_key} onChange={e=>mutate(i,'api_key',e.target.value)} placeholder="API Key (leave blank for LM Studio)"/>
           </div>
         ))}
-        <button className="btn-ghost" style={{width:'100%'}} onClick={() => setAgents([...agents,{ id:`Character_${agents.length+1}`, hidden_agenda:'', model_config:{ provider:'lm_studio', base_url:'http://localhost:1234/v1', model_name:'local-model', api_key:'' }}])}>
-          + Add Character
-        </button>
-        <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={() => onSave(agents)}>Save & Apply</button>
+        <button className="btn-add" onClick={()=>setAgents([...agents,{id:`Character_${agents.length+1}`,hidden_agenda:'',model_config:{provider:'lm_studio',base_url:'http://localhost:1234/v1',model_name:'local-model',api_key:''}}])}>+ Add Character</button>
+        <div className="mfoot">
+          <button className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="btn-pri" onClick={()=>onSave(agents)}>Save & Apply</button>
         </div>
       </div>
     </div>
   )
 }
 
-// ── Main App ─────────────────────────────────────────────────────────
 export default function App() {
-  const [messages, setMessages]     = useState([{ content: "[SYSTEM]: Ready to begin simulation…", type: "action" }])
-  const [monologues, setMonologues] = useState([])
-  const [vitals, setVitals]         = useState({ tension: 0.5, energy: 0.8 })
-  const [command, setCommand]       = useState("")
-  const [sceneInput, setSceneInput] = useState("")
-  const [isConfigOpen, setIsConfigOpen] = useState(false)
-  const [testResults, setTestResults]   = useState({})
-  const [isAutoPlay, setIsAutoPlay]     = useState(false)
-  const [isTTSEnabled, setIsTTSEnabled] = useState(false)
-  const [worldState, setWorldState]     = useState({ location:"Unknown", lighting:"Unknown", props:[] })
-  const [agentsStatus, setAgentsStatus] = useState([])
-  const [wsConnected, setWsConnected]   = useState(false)
+  const [msgs,    setMsgs]    = useState([{type:'action',content:'[SYSTEM]: Ready — press ▶ Start Scene to begin.'}])
+  const [monos,   setMonos]   = useState([])
+  const [vitals,  setVitals]  = useState({tension:.5, turn_count:0})
+  const [world,   setWorld]   = useState({location:'Unknown',lighting:'Unknown',props:[]})
+  const [agents,  setAgents]  = useState([])
+  const [cmd,     setCmd]     = useState('')
+  const [loc,     setLoc]     = useState('')
+  const [auto,    setAuto]    = useState(false)
+  const [tts,     setTts]     = useState(false)
+  const [wsOk,    setWsOk]    = useState(false)
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const [testRes, setTestRes] = useState({})
+  const [tab,     setTab]     = useState('vitals')  // 'vitals' | 'thoughts'
 
-  const wsRef             = useRef(null)
-  const scriptRef         = useRef(null)
-  const monoRef           = useRef(null)
-  const autoPlayRef       = useRef(false)
-  const ttsRef            = useRef(false)
-  const autoPlayTimerRef  = useRef(null)
+  const wsRef   = useRef(null)
+  const feedRef = useRef(null)
+  const monoRef = useRef(null)
+  const autoRef = useRef(false)
+  const ttsRef  = useRef(false)
+  const timerRef= useRef(null)
 
-  useEffect(() => { autoPlayRef.current = isAutoPlay }, [isAutoPlay])
-  useEffect(() => { ttsRef.current = isTTSEnabled }, [isTTSEnabled])
+  useEffect(()=>{autoRef.current=auto},[auto])
+  useEffect(()=>{ttsRef.current=tts},[tts])
 
-  const speakText = (text, name) => {
-    if (!('speechSynthesis' in window) || !ttsRef.current) return
-    const clean = text.replace(/\[.*?\]/g,'').trim()
-    if (!clean) return
-    const u = new SpeechSynthesisUtterance(clean)
-    u.pitch = 0.8 + ((name.split('').reduce((a,c) => a+c.charCodeAt(0),0) % 10) / 20)
-    window.speechSynthesis.speak(u)
+  const speak = (text,name='') => {
+    if (!ttsRef.current||!('speechSynthesis' in window)) return
+    const u = new SpeechSynthesisUtterance(text.replace(/\[.*?\]/g,'').trim())
+    u.pitch = .8+((name.charCodeAt(0)||65)%8)/18
+    speechSynthesis.speak(u)
   }
 
-  useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws")
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      setWsConnected(true)
-      ws.send(JSON.stringify({ type:"get_state" }))
-    }
-    ws.onclose = () => setWsConnected(false)
-    ws.onerror = () => setWsConnected(false)
-
-    ws.onmessage = (ev) => {
+  useEffect(()=>{
+    const sock = new WebSocket('ws://localhost:8000/ws')
+    wsRef.current = sock
+    sock.onopen  = () => { setWsOk(true); sock.send(JSON.stringify({type:'get_state'})) }
+    sock.onclose = () => setWsOk(false)
+    sock.onerror = () => setWsOk(false)
+    sock.onmessage = ev => {
       const d = JSON.parse(ev.data)
-      if (d.type === "dialogue" || d.type === "action") {
-        setMessages(p => [...p, d])
-        if (d.type === "dialogue") speakText(d.content, d.agent_id || "")
-      } else if (d.type === "monologue") {
-        setMonologues(p => [...p, d])
-      } else if (d.type === "world_update") {
-        setWorldState(d.world)
-      } else if (d.type === "agents_update") {
-        setAgentsStatus(d.agents)
-      } else if (d.type === "image_update") {
-        setMessages(p => [...p, { type:"image", url:d.url, prompt:d.prompt }])
-      } else if (d.type === "history_reset") {
-        setMessages(d.messages); setMonologues(d.monologues)
-      } else if (d.type === "vitals_update") {
+      if (d.type==='dialogue'||d.type==='action') {
+        setMsgs(p=>[...p,d])
+        if (d.type==='dialogue') speak(d.content, d.agent_id||'')
+      } else if (d.type==='monologue') {
+        setMonos(p=>[...p,d])
+        setTab('thoughts')
+      } else if (d.type==='world_update') {
+        setWorld(d.world)
+      } else if (d.type==='agents_update') {
+        setAgents(d.agents)
+      } else if (d.type==='image_update') {
+        setMsgs(p=>[...p,{type:'image',url:d.url,prompt:d.prompt}])
+      } else if (d.type==='history_reset') {
+        setMsgs(d.messages||[]); setMonos(d.monologues||[])
+      } else if (d.type==='vitals_update') {
         setVitals(d.vitals)
-        if (autoPlayRef.current) {
-          if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current)
-          autoPlayTimerRef.current = setTimeout(() => {
-            if (autoPlayRef.current && wsRef.current?.readyState === WebSocket.OPEN)
-              wsRef.current.send(JSON.stringify({ type:"next_turn" }))
-            autoPlayTimerRef.current = null
-          }, 3000)
+        if (autoRef.current) {
+          if (timerRef.current) clearTimeout(timerRef.current)
+          timerRef.current = setTimeout(()=>{
+            if (autoRef.current && wsRef.current?.readyState===1)
+              wsRef.current.send(JSON.stringify({type:'next_turn'}))
+            timerRef.current=null
+          }, 3200)
         }
-      } else if (d.type === "check_result") {
-        setTestResults(p => ({...p, [d.agent_id]: d}))
+      } else if (d.type==='check_result') {
+        setTestRes(p=>({...p,[d.agent_id]:d}))
       }
     }
-    return () => ws.close()
-  }, [])
+    return ()=>sock.close()
+  },[])
 
-  useEffect(() => { if (scriptRef.current) scriptRef.current.scrollTop = scriptRef.current.scrollHeight }, [messages])
-  useEffect(() => { if (monoRef.current) monoRef.current.scrollTop = monoRef.current.scrollHeight }, [monologues])
+  useEffect(()=>{ if(feedRef.current) feedRef.current.scrollTop=feedRef.current.scrollHeight },[msgs])
+  useEffect(()=>{ if(monoRef.current) monoRef.current.scrollTop=monoRef.current.scrollHeight },[monos])
 
-  const send = (msg) => wsRef.current?.readyState === WebSocket.OPEN && wsRef.current.send(JSON.stringify(msg))
+  const send = o => wsRef.current?.readyState===1 && wsRef.current.send(JSON.stringify(o))
+  const lastSpk = [...msgs].reverse().find(m=>m.agent_id)?.agent_id
 
-  const lastSpeaker = messages.filter(m => m.agent_id).slice(-1)[0]?.agent_id
+  const turnCount = vitals.turn_count ?? 0
+  const beat = getBeat(turnCount)
+  const beatProgress = getBeatProgress(turnCount)
 
-  // ── Render message line ──────────────────────────────────────────
-  const renderLine = (msg, i) => {
-    if (msg.type === "image") return (
-      <div key={i} className="script-line" style={{margin:'8px 0'}}>
-        <div style={{fontSize:11, color:'var(--text-muted)', marginBottom:6, fontStyle:'italic'}}>🎬 {msg.prompt?.substring(0,80)}…</div>
-        <img src={msg.url} alt="Scene" style={{width:'100%', borderRadius:10, border:'1px solid var(--border)'}} />
+  const renderMsg = (m,i) => {
+    if (m.type==='image') return (
+      <div key={i} style={{animation:'up .3s ease-out'}}>
+        <div style={{fontSize:11,color:'var(--t4)',marginBottom:6,fontStyle:'italic'}}>🎬 {m.prompt?.substring(0,90)}…</div>
+        <img src={m.url} alt="" style={{width:'100%',borderRadius:10,border:'1px solid var(--border)'}}/>
       </div>
     )
-    if (msg.type === "dialogue" && msg.agent_id) {
-      const idx = agentsStatus.findIndex(a => a.id === msg.agent_id)
-      const col = charColor(idx >= 0 ? idx : 0)
-      const text = msg.content.replace(/^[^:]+:\s*/,'')
+    if (m.type==='dialogue' && m.agent_id) {
+      const idx = agents.findIndex(a=>a.id===m.agent_id)
+      const col = cc(idx>=0?idx:0)
       return (
-        <div key={i} className="script-line type-dialogue">
-          <div className="avatar-sm" style={{background: col}}>{msg.agent_id.substring(0,2).toUpperCase()}</div>
-          <div className="dialogue-wrap">
-            <div className="speaker-name" style={{color: col}}>{msg.agent_id}</div>
-            <div className="dialogue-text">{text}</div>
+        <div key={i} className="msg-d">
+          <div className="avsm" style={{background:col}}>{m.agent_id.substring(0,2).toUpperCase()}</div>
+          <div className="mbody">
+            <div className="mname" style={{color:col}}>{m.agent_id}</div>
+            <div className="mtext">{m.content.replace(/^[^:]+:\s*/,'')}</div>
           </div>
         </div>
       )
     }
-    // action / system
-    const isDirector = msg.content?.includes('[DIRECTOR')
-    const isSystem   = msg.content?.includes('[SYSTEM') || msg.content?.includes('[SCENE') || msg.content?.includes('[ERROR')
-    return (
-      <div key={i} className={`script-line type-action ${isDirector ? 'director' : isSystem ? 'system' : ''}`}>
-        {msg.content}
-      </div>
-    )
+    const isDir = m.content?.includes('[DIRECTOR')
+    const isSys = m.content?.includes('[SYSTEM')||m.content?.includes('[SCENE START')
+    const isScn = m.content?.includes('[SCENE CHANGE')
+    const isErr = m.content?.includes('[ERROR')
+    return <div key={i} className={`msg-a${isDir?' dir':isSys?' sys':isScn?' scn':isErr?' err':''}`}>{m.content}</div>
   }
 
   return (
-    <div className="app-shell">
+    <div className="shell">
+      <ConfigModal isOpen={cfgOpen} onClose={()=>setCfgOpen(false)}
+        onSave={a=>{send({type:'configure_scene',agents:a});setCfgOpen(false)}}
+        onTest={(id,cfg)=>{setTestRes(p=>({...p,[id]:{status:'loading'}}));send({type:'check_model',agent_id:id,model_config:cfg})}}
+        testResults={testRes}/>
+
       {/* ── Topbar ── */}
       <div className="topbar">
-        <div className="topbar-logo">
-          <div className="logo-icon">🎭</div>
-          <div>
-            <div>PersonaPlay <span style={{color:'var(--purple)'}}>Pro</span></div>
-            <div className="logo-sub">Multi-Agent Theater Engine</div>
+        <div className="logo">
+          <div className="logo-gem">🎭</div>
+          <div className="logo-text">
+            <div className="name">Persona<em>Play</em> Pro</div>
+            <div className="sub">Multi-Agent Theater Engine</div>
           </div>
         </div>
+        <div className="tsep"/>
 
-        <div className="topbar-center">
-          <button className="pill-btn btn-start" style={{borderRadius:20}} onClick={() => send({type:"start_scene"})}>▶ Start</button>
-          <button className="pill-btn btn-pause" style={{borderRadius:20}} onClick={() => { setIsAutoPlay(false); setMessages(p=>[...p,{type:'action',content:'[SYSTEM]: ⏸ Paused.'}]) }}>⏸ Pause</button>
-          <button className="pill-btn btn-stop" style={{borderRadius:20}} onClick={() => { setIsAutoPlay(false); send({type:"stop_scene"}) }}>⏹ Stop</button>
-          <div style={{width:1, height:18, background:'var(--border)', margin:'0 4px'}} />
-          <button className="pill-btn" style={{borderRadius:20}} onClick={() => send({type:"next_turn"})}>⚡ Next Turn</button>
-          <button className="pill-btn btn-rewind" style={{borderRadius:20}} onClick={() => send({type:"rewind_turns", turns:3})}>⏪ Rewind</button>
+        <div className="ctrl-group">
+          <button className="cb green" onClick={()=>send({type:'start_scene'})}>▶ Start Scene</button>
+          <button className="cb"       onClick={()=>{setAuto(false);setMsgs(p=>[...p,{type:'action',content:'[SYSTEM]: ⏸ Paused.'}])}}>⏸ Pause</button>
+          <button className="cb red"   onClick={()=>{setAuto(false);send({type:'stop_scene'})}}>⏹ Stop</button>
+        </div>
+        <div className="tsep"/>
+        <div className="ctrl-group">
+          <button className="cb purple" onClick={()=>send({type:'next_turn'})}>⚡ Next Turn</button>
+          <button className="cb cyan"   onClick={()=>send({type:'rewind_turns',turns:3})}>⏪ Rewind</button>
+          <button className="cb amber"  onClick={()=>send({type:'export_script'})}>⬇ Export</button>
         </div>
 
-        <div className="topbar-right">
-          <div className="ws-indicator">
-            <div className={`ws-dot ${wsConnected ? '' : 'offline'}`} />
-            {wsConnected ? 'Live' : 'Offline'}
+        <div className="tb-right">
+          <div className="turn-badge">Turn {turnCount}</div>
+          <div className="ws-badge">
+            <div className={`wdot ${wsOk?'on':'off'}`}/>
+            {wsOk ? 'Connected' : 'Offline'}
           </div>
-          <button className="pill-btn" onClick={() => send({type:"export_script"})}>⬇ Export</button>
-          <button className="pill-btn btn-primary" style={{borderRadius:20, fontSize:11}} onClick={() => setIsConfigOpen(true)}>⚙ Configure</button>
+          <button className="cb" style={{borderColor:'rgba(167,139,250,.4)',color:'var(--purple)',background:'rgba(167,139,250,.1)'}}
+            onClick={()=>setCfgOpen(true)}>⚙ Configure</button>
         </div>
       </div>
 
+      {/* ── Beat bar ── */}
+      <div className="beatbar">
+        <span className="beat-label">Narrative</span>
+        <span className="beat-name">{beat[2]}</span>
+        <div className="beat-track"><div className="beat-fill" style={{width:`${beatProgress*100}%`}}/></div>
+        <span className="beat-desc">Turn {turnCount} of {beat[1]}</span>
+      </div>
+
       {/* ── Dashboard ── */}
-      <div className="dashboard">
-        <ConfigModal isOpen={isConfigOpen} onClose={() => setIsConfigOpen(false)}
-          onSave={agents => { send({type:"configure_scene", agents}); setIsConfigOpen(false) }}
-          onTest={(id, cfg) => { setTestResults(p=>({...p,[id]:{status:'loading'}})); send({type:"check_model", agent_id:id, model_config:cfg}) }}
-          testResults={testResults} />
+      <div className="dash">
 
-        {/* ── LEFT: Director Panel ── */}
+        {/* ── LEFT: Director ── */}
         <div className="panel">
-          <div className="panel-head">
-            <div className="panel-head-icon" style={{background:'rgba(139,92,246,0.2)'}}>🎬</div>
-            <h2>Director</h2>
+          <div className="ph">
+            <div className="ph-icon" style={{background:'rgba(167,139,250,.18)'}}>🎬</div>
+            <span className="ph-title">Director</span>
           </div>
-          <div className="panel-body">
-
-            {/* Auto-play & TTS toggles */}
-            <div className="toggle-row">
-              <span className="toggle-label">🎞 Auto-Play</span>
-              <label className="toggle-switch">
-                <input type="checkbox" checked={isAutoPlay} onChange={e => setIsAutoPlay(e.target.checked)} />
-                <span className="toggle-track" />
-              </label>
+          <div className="pb">
+            <div className="togrow">
+              <span className="togl">🎞 Auto-Play</span>
+              <label className="sw"><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/><span className="sw-t"/></label>
             </div>
-            <div className="toggle-row">
-              <span className="toggle-label">🔊 Voice (TTS)</span>
-              <label className="toggle-switch">
-                <input type="checkbox" checked={isTTSEnabled} onChange={e => setIsTTSEnabled(e.target.checked)} />
-                <span className="toggle-track" />
-              </label>
+            <div className="togrow">
+              <span className="togl">🔊 Voice (TTS)</span>
+              <label className="sw"><input type="checkbox" checked={tts} onChange={e=>setTts(e.target.checked)}/><span className="sw-t"/></label>
             </div>
 
-            <div className="divider" />
-
-            {/* Scene World */}
-            <div className="section-label">🌍 World State</div>
-            <div className="world-card">
-              <div className="world-card-row"><span className="wlabel">📍 Location</span><span className="wvalue">{worldState.location}</span></div>
-              <div className="world-card-row"><span className="wlabel">💡 Lighting</span><span className="wvalue">{worldState.lighting}</span></div>
-              <div className="world-card-row" style={{marginTop:8, flexDirection:'column', alignItems:'flex-start', gap:4}}>
-                <span className="wlabel" style={{fontSize:10}}>🔥 Scene Tension — {Math.round((vitals.tension||0.5)*100)}%</span>
-                <div className="tension-bar" style={{width:'100%'}}>
-                  <div className="tension-fill" style={{width:`${(vitals.tension||0.5)*100}%`}} />
+            <div className="rule"/>
+            <div className="sec">🌍 World State</div>
+            <div className="wcard">
+              <div className="wrow"><span className="wl">📍 Location</span><span className="wv">{world.location}</span></div>
+              <div className="wrow"><span className="wl">💡 Lighting</span><span className="wv">{world.lighting}</span></div>
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span className="wl">🔥 Scene Tension</span>
+                  <span style={{fontSize:13,fontWeight:800,color:'var(--amber)'}}>{Math.round((vitals.tension||.5)*100)}%</span>
                 </div>
-                <input type="range" min="0" max="1" step="0.05" value={vitals.tension||0.5}
-                  onChange={e => send({type:"force_scene_tension", value:parseFloat(e.target.value)})}
-                  style={{width:'100%', marginTop:2, accentColor:'var(--amber)'}} />
+                <div className="tension-track"><div className="tension-fill" style={{width:`${(vitals.tension||.5)*100}%`}}/></div>
+                <input type="range" min="0" max="1" step="0.05" value={vitals.tension||.5}
+                  onChange={e=>send({type:'force_scene_tension',value:parseFloat(e.target.value)})}
+                  style={{accentColor:'var(--amber)'}}/>
               </div>
             </div>
 
-            {/* Props */}
-            {worldState.props.length > 0 && <>
-              <div className="section-label">🧳 Props</div>
-              {worldState.props.map(p => (
+            {world.props.length>0 && <>
+              <div className="sec">🎒 Props</div>
+              {world.props.map(p=>(
                 <div key={p.id} className="prop-row">
-                  <span className="prop-name">🎁 {p.id.replace(/_/g,' ')}</span>
-                  <select className="prop-select" value={p.owner}
-                    onChange={e => send({type:"force_give_prop", prop_id:p.id, owner:e.target.value})}>
+                  <span className="pname">{p.id.replace(/_/g,' ')}</span>
+                  <select className="psel" value={p.owner} onChange={e=>send({type:'force_give_prop',prop_id:p.id,owner:e.target.value})}>
                     <option value="Nobody">Nobody</option>
-                    {agentsStatus.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
+                    {agents.map(a=><option key={a.id} value={a.id}>{a.id}</option>)}
                   </select>
                 </div>
               ))}
             </>}
 
-            <div className="divider" />
-
-            {/* Move scene */}
-            <div className="section-label">🚀 Teleport Scene</div>
-            <form onSubmit={e => { e.preventDefault(); if(sceneInput.trim()){ send({type:"change_scene", location:sceneInput}); setSceneInput("") }}} style={{display:'flex', gap:6}}>
-              <input type="text" placeholder="New location…" value={sceneInput} onChange={e => setSceneInput(e.target.value)} style={{flex:1}} />
-              <button type="submit" className="btn-ghost" style={{width:'auto', padding:'8px 12px', flexShrink:0}}>Go</button>
+            <div className="rule"/>
+            <div className="sec">🚀 Teleport Scene</div>
+            <form style={{display:'flex',gap:6}} onSubmit={e=>{e.preventDefault();if(loc.trim()){send({type:'change_scene',location:loc});setLoc('')}}}>
+              <input type="text" placeholder="New location…" value={loc} onChange={e=>setLoc(e.target.value)} style={{flex:1}}/>
+              <button type="submit" className="btn-go">Go</button>
             </form>
 
-            {/* Director command */}
-            <div className="section-label">⚡ Inject Chaos</div>
-            <form onSubmit={e => { e.preventDefault(); if(command.trim()){ send({type:"director_command", command}); setMessages(p=>[...p,{type:'action',content:`[DIRECTOR INJECTS]: ${command}`}]); setCommand("") }}} style={{display:'flex', flexDirection:'column', gap:6}}>
-              <input type="text" placeholder="Type a dramatic event…" value={command} onChange={e => setCommand(e.target.value)} />
-              <button type="submit" className="btn-chaos">🔥 Inject</button>
+            <div className="sec">⚡ Inject Chaos</div>
+            <form style={{display:'flex',flexDirection:'column',gap:8}} onSubmit={e=>{e.preventDefault();if(cmd.trim()){send({type:'director_command',command:cmd});setMsgs(p=>[...p,{type:'action',content:`[DIRECTOR INJECTS]: ${cmd}`}]);setCmd('')}}}>
+              <input type="text" placeholder="E.g. 'Police appear in the rear view'" value={cmd} onChange={e=>setCmd(e.target.value)}/>
+              <button type="submit" className="btn-chaos">🔥 Inject into Scene</button>
             </form>
-
           </div>
         </div>
 
-        {/* ── CENTER: Theater Panel ── */}
+        {/* ── CENTER: Theater ── */}
         <div className="panel">
-          <div className="panel-head">
-            <div className="panel-head-icon" style={{background:'rgba(6,182,212,0.2)'}}>🎭</div>
-            <h2>Theater</h2>
-            {agentsStatus.length > 0 && <span style={{marginLeft:'auto', fontSize:10, color:'var(--text-muted)'}}>{worldState.location}</span>}
+          <div className="ph">
+            <div className="ph-icon" style={{background:'rgba(103,232,249,.12)'}}>🎭</div>
+            <span className="ph-title">Theater</span>
+            <span className="ph-sub">{world.location}</span>
           </div>
 
-          {/* Stage */}
-          <div className="stage-wrap">
-            <div className="stage-label">Stage</div>
-            {agentsStatus.map((agent, i) => {
-              const col = charColor(i)
-              const left = 15 + ((i * 40) % 65) + (agent.emotions?.energy ?? 0.5) * 15
-              const top  = 20 + ((i * 18) % 35) + (agent.emotions?.tension ?? 0.5) * 18
-              const speaking = lastSpeaker === agent.id
+          <div className="stage">
+            <div className="stage-spotlight"/>
+            <div className="slabel">Stage</div>
+            {agents.map((ag,i)=>{
+              const col=cc(i)
+              const left=18+((i*45)%58)+(ag.emotions?.energy??0.5)*12
+              const top=22+((i*22)%34)+(ag.emotions?.tension??0.5)*14
               return (
-                <div key={agent.id} className={`actor-avatar ${speaking ? 'speaking' : ''}`}
-                  style={{ left:`${left}%`, top:`${top}%`, background: col, transform: `translate(-50%,-50%)` }}>
-                  {agent.id.substring(0,2).toUpperCase()}
-                  <div className="actor-name-tag">{agent.id}</div>
+                <div key={ag.id} className={`avatar${lastSpk===ag.id?' speaking':''}`}
+                  style={{left:`${left}%`,top:`${top}%`,background:col}}>
+                  {ag.id.substring(0,2).toUpperCase()}
+                  <span className="atag">{ag.id}</span>
                 </div>
               )
             })}
-            <div className="stage-floor" />
+            <div className="stage-floor"/>
           </div>
 
-          {/* Script feed */}
-          <div className="script-feed" ref={scriptRef}>
-            {messages.map((msg, i) => renderLine(msg, i))}
+          <div className="feed" ref={feedRef}>
+            {msgs.map((m,i)=>renderMsg(m,i))}
           </div>
         </div>
 
-        {/* ── RIGHT: Backstage Panel ── */}
+        {/* ── RIGHT: Backstage ── */}
         <div className="panel">
-          <div className="panel-head">
-            <div className="panel-head-icon" style={{background:'rgba(236,72,153,0.2)'}}>🧠</div>
-            <h2>Backstage</h2>
+          <div className="ph">
+            <div className="ph-icon" style={{background:'rgba(249,168,212,.12)'}}>🧠</div>
+            <span className="ph-title">Backstage</span>
           </div>
-          <div className="panel-body">
+          <div className="tabs">
+            <button className={`tab${tab==='vitals'?' active':''}`} onClick={()=>setTab('vitals')}>⚡ Vitals</button>
+            <button className={`tab${tab==='thoughts'?' active':''}`} onClick={()=>setTab('thoughts')}>💭 Thoughts {monos.length>0&&<span style={{marginLeft:4,fontSize:10,background:'rgba(167,139,250,.2)',color:'var(--purple)',borderRadius:4,padding:'1px 5px'}}>{monos.length}</span>}</button>
+          </div>
 
-            {/* Agent emotion sliders */}
-            {agentsStatus.map((agent, i) => {
-              const col = charColor(i)
-              return (
-                <div key={agent.id} className="agent-vitals-card">
-                  <div className="agent-vitals-name">
-                    <div className="avatar-dot" style={{background: col}}>{agent.id.substring(0,2).toUpperCase()}</div>
-                    {agent.id}
-                    {lastSpeaker === agent.id && <span style={{marginLeft:'auto', fontSize:9, color: col, fontWeight:700, letterSpacing:1}}>SPEAKING</span>}
-                  </div>
-                  {[['tension','🔥','#ef4444'],['energy','⚡','#22c55e'],['affection','💜','#ec4899'],['suspicion','👁','#f59e0b']].map(([stat,icon,color]) => (
-                    <div key={stat} className="vital-row">
-                      <span className="vital-label" style={{color}}>{icon} {stat.charAt(0).toUpperCase()+stat.slice(1)}</span>
-                      <input type="range" min="0" max="1" step="0.05" className="vital-range"
-                        value={agent.emotions?.[stat] ?? 0.5}
-                        onChange={e => send({type:"force_emotion", agent_id:agent.id, emotion:stat, value:parseFloat(e.target.value)})}
-                        style={{accentColor: color}} />
-                      <span className="vital-pct">{Math.round((agent.emotions?.[stat]??0.5)*100)}%</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-
-            {agentsStatus.length > 0 && <div className="divider" />}
-
-            {/* Internal monologue stream */}
-            <div className="section-label">💭 Inner Thoughts</div>
-            <div className="mono-stream" ref={monoRef}>
-              {monologues.length === 0 && <div style={{fontSize:12, color:'var(--text-muted)', fontStyle:'italic', textAlign:'center', marginTop:8}}>Thoughts appear here during simulation…</div>}
-              {monologues.map((msg, i) => {
-                const idx = agentsStatus.findIndex(a => a.id === msg.agent_id)
-                const col = charColor(idx >= 0 ? idx : 0)
+          {tab==='vitals' && (
+            <div className="pb">
+              {agents.map((ag,i)=>{
+                const col=cc(i)
                 return (
-                  <div key={i} className="mono-entry" style={{borderLeftColor: col+'66'}}>
-                    <div className="mono-who" style={{color: col}}>{msg.agent_id}</div>
-                    <div className="mono-text">{msg.content}</div>
+                  <div key={ag.id} className="vcard">
+                    <div className="vname">
+                      <div className="vdot" style={{background:col}}>{ag.id.substring(0,2).toUpperCase()}</div>
+                      {ag.id}
+                      {lastSpk===ag.id&&<span className="spk-badge">LIVE</span>}
+                    </div>
+                    {[['tension','🔥','#fc8181'],['energy','⚡','#4ade80'],['affection','💜','#f9a8d4'],['suspicion','👁','#fcd34d']].map(([s,ic,c])=>(
+                      <div key={s} className="vrow">
+                        <span className="vlbl" style={{color:c}}>{ic} {s.charAt(0).toUpperCase()+s.slice(1)}</span>
+                        <input type="range" min="0" max="1" step="0.05"
+                          value={ag.emotions?.[s]??0.5}
+                          onChange={e=>send({type:'force_emotion',agent_id:ag.id,emotion:s,value:parseFloat(e.target.value)})}
+                          style={{flex:1,accentColor:c}}/>
+                        <span className="vpct">{Math.round((ag.emotions?.[s]??0.5)*100)}%</span>
+                      </div>
+                    ))}
                   </div>
                 )
               })}
+              {agents.length===0&&<div className="mempty">No agents loaded yet.<br/>Press Configure to set up your cast.</div>}
             </div>
-          </div>
+          )}
+
+          {tab==='thoughts' && (
+            <div className="pb">
+              <div className="mono-stream" ref={monoRef}>
+                {monos.length===0&&<div className="mempty">Inner thoughts appear here<br/>as the scene unfolds…</div>}
+                {monos.map((m,i)=>{
+                  const idx=agents.findIndex(a=>a.id===m.agent_id)
+                  const col=cc(idx>=0?idx:0)
+                  return (
+                    <div key={i} className="mcard" style={{borderLeftColor:col}}>
+                      <div className="mwho" style={{color:col}}>{m.agent_id}</div>
+                      <div className="mtext">{m.content}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

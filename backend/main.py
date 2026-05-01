@@ -205,11 +205,18 @@ async def websocket_endpoint(websocket: WebSocket):
                         new_state = await graph.ainvoke(snapshot)
                         
                         if isinstance(new_state, dict):
-                            # LangGraph returned a state dict
                             manager.state.chat_history = new_state.get('chat_history', manager.state.chat_history)
-                            manager.state.next_speaker = new_state.get('next_speaker', manager.state.next_speaker)
+                            manager.state.next_speaker  = new_state.get('next_speaker',  manager.state.next_speaker)
+                            # LangGraph hybrid: top-level is dict but nested values may
+                            # still be Pydantic objects — cannot call .get() on them.
+                            scene_val = new_state.get('scene')
+                            if scene_val is not None:
+                                if isinstance(scene_val, dict):
+                                    manager.state.scene.turn_count = scene_val.get('turn_count', manager.state.scene.turn_count)
+                                elif hasattr(scene_val, 'turn_count'):
+                                    manager.state.scene.turn_count = scene_val.turn_count
                         else:
-                            # LangGraph returned the Pydantic object
+                            # LangGraph returned a full Pydantic object — replace wholesale
                             manager.state = new_state
                         
                         chat_hist = manager.state.chat_history
@@ -254,13 +261,14 @@ async def websocket_endpoint(websocket: WebSocket):
                         await manager.broadcast({"type": "world_update", "world": manager.state.scene.world_state.model_dump()})
                         await manager.broadcast({"type": "agents_update", "agents": [v.model_dump() for v in manager.state.agents.values()]})
                         
-                        # 3. Stream tension update
+                        # 3. Stream tension + turn meta update
                         manager.state.scene.narrative_tension = min(manager.state.scene.narrative_tension + 0.05, 1.0)
                         await manager.broadcast({
                             "type": "vitals_update",
                             "vitals": {
                                 "tension": manager.state.scene.narrative_tension,
-                                "energy": manager.state.agents[actual_speaker].emotions.energy if actual_speaker in manager.state.agents else 0.5
+                                "energy": manager.state.agents[actual_speaker].emotions.energy if actual_speaker in manager.state.agents else 0.5,
+                                "turn_count": manager.state.scene.turn_count,
                             }
                         })
                         
