@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import JsonOutputParser
 
+import random
 from state import SceneState, EmotionVector, AgentState, ModelConfig
 from memory import retrieve_memories, add_memory
 
@@ -47,9 +48,13 @@ def get_model(config: ModelConfig):
 async def director_node(state: OrchestratorState) -> OrchestratorState:
     """The Director analyzes narrative tension and assigns the next speaker."""
     print(f"[Backend] Director analyzing state... Turn {state.scene.turn_count}")
+    # Increment turn count without mutating nested state directly
+    state = state.model_copy(deep=True)
     state.scene.turn_count += 1
     
     agent_ids = list(state.agents.keys())
+    if not agent_ids:
+        return state
     
     if len(agent_ids) > 2 and state.chat_history:
         try:
@@ -92,13 +97,22 @@ class ActorOutput(BaseModel):
 async def actor_node(state: OrchestratorState) -> OrchestratorState:
     """The Actor generates an internal monologue followed by a public action/dialogue."""
     speaker = state.next_speaker
+    
+    # Guard: speaker may have been removed from roster mid-session
+    if speaker not in state.agents:
+        print(f"[Backend] Speaker '{speaker}' not found in agents. Skipping.")
+        return state
+    
     agent = state.agents[speaker]
     
-    context = "\n".join(state.chat_history[-5:]) if state.chat_history else "(Start of scene)"
+    context = "\n".join(state.chat_history[-10:]) if state.chat_history else "(Start of scene)"
     
     # Format props for world context
     props_str = ", ".join([f"{p.id} (owned by {p.owner})" for p in state.scene.world_state.props])
     world_context = f"Scene: {state.scene.active_scene}, Location: {state.scene.world_state.location}. Props available: {props_str}"
+    
+    # Include hidden agenda so the actor is character-aware
+    agenda_str = f"Your secret agenda (never reveal this directly): {agent.hidden_agenda}" if agent.hidden_agenda else ""
     
     # 1. Parallel Internal Processing
     print("[Backend] Generating parallel monologues...")
@@ -115,7 +129,7 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     parser = JsonOutputParser(pydantic_object=ActorOutput)
     format_instructions = parser.get_format_instructions()
     
-    prompt = f"You are {speaker}. {world_context}{mem_context}\nRecent history:\n{context}\nYour internal thought: {speaker_mono}\n\n{format_instructions}\nProvide your next action. Output strictly valid JSON."
+    prompt = f"You are {speaker}. {agenda_str}\n{world_context}{mem_context}\nRecent history:\n{context}\nYour internal thought: {speaker_mono}\n\n{format_instructions}\nProvide your next action. Output strictly valid JSON."
     
     print(f"[Backend] Actor '{speaker}' generating dialogue + ECS action...")
     try:
@@ -131,14 +145,16 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
             prop_id = parsed["take_prop"]
             for p in state.scene.world_state.props:
                 if p.id == prop_id:
+                    # Use object attribute assignment (Pydantic v2 allows this with model_config)
                     p.owner = speaker
                     print(f"[Backend] ECS: {speaker} took {prop_id}")
+                    break  # only take the first matching prop
                     
         if parsed.get("move_to"):
             state.scene.world_state.location = parsed["move_to"]
             print(f"[Backend] ECS: Scene moved to {parsed['move_to']}")
             
-        import random
+        # Emotion drift (random already imported at top)
         agent.emotions.energy = max(0.0, agent.emotions.energy - random.uniform(0.01, 0.05))
         agent.emotions.tension = max(0.0, min(1.0, agent.emotions.tension + random.uniform(-0.1, 0.15)))
         agent.emotions.suspicion = max(0.0, min(1.0, agent.emotions.suspicion + random.uniform(-0.05, 0.1)))
@@ -152,6 +168,9 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     new_chat_history = list(state.chat_history)
     new_chat_history.append(f"[{speaker}'s Thought]: {speaker_mono}")
     new_chat_history.append(dialogue)
+    # Cap chat history to avoid infinite growth / context overflow
+    if len(new_chat_history) > 60:
+        new_chat_history = new_chat_history[-60:]
     state.chat_history = new_chat_history
     
     print(f"[Backend] Actor '{speaker}' completed turn.")

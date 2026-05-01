@@ -24,3 +24,13 @@ def retrieve_memories(agent_id: str, query: str, k: int = 3) -> str:
     except Exception as e:
         print(f"Memory retrieval error: {e}")
         return ""
+
+def clear_memories():
+    """Clear all episodic memories. Called on scene restart to prevent session bleed."""
+    try:
+        all_ids = vectorstore.get()["ids"]
+        if all_ids:
+            vectorstore.delete(ids=all_ids)
+            print(f"[Memory] Cleared {len(all_ids)} episodic memories.")
+    except Exception as e:
+        print(f"[Memory] Clear error (non-fatal): {e}")

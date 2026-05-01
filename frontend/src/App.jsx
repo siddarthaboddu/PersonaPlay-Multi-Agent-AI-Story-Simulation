@@ -140,6 +140,7 @@ function App() {
   const monoRef = useRef(null);
   const autoPlayRef = useRef(isAutoPlay);
   const ttsRef = useRef(isTTSEnabled);
+  const autoPlayTimerRef = useRef(null);
 
   useEffect(() => {
     autoPlayRef.current = isAutoPlay;
@@ -191,10 +192,13 @@ function App() {
         
         // Auto-play logic: trigger next turn after a short delay if enabled
         if (autoPlayRef.current) {
-          setTimeout(() => {
-             if (autoPlayRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          // Clear any existing pending timer first to prevent stacking
+          if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+          autoPlayTimerRef.current = setTimeout(() => {
+             if (autoPlayRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
                  wsRef.current.send(JSON.stringify({ type: "next_turn" }));
              }
+             autoPlayTimerRef.current = null;
           }, 3000);
         }
       } else if (data.type === "check_result") {
@@ -322,6 +326,8 @@ function App() {
              <div style={{fontWeight: 'bold', color: '#fbbf24', marginBottom: '4px'}}>Current World</div>
              <div><span style={{color: '#94a3b8'}}>Location:</span> {worldState.location}</div>
              <div><span style={{color: '#94a3b8'}}>Lighting:</span> {worldState.lighting}</div>
+             <div style={{color: '#94a3b8', marginTop: '4px'}}>Scene Tension:</div>
+             <input type="range" min="0" max="1" step="0.05" value={vitals.tension || 0.5} onChange={e => wsRef.current.send(JSON.stringify({ type: "force_scene_tension", value: parseFloat(e.target.value) }))} style={{width: '100%', accentColor: '#fbbf24', cursor: 'pointer', height: '4px'}}/>
              <div style={{color: '#94a3b8', marginTop: '4px'}}>Props:</div>
              <ul style={{margin: '0 0 0 16px', padding: 0}}>
                 {worldState.props.length === 0 ? <li style={{color: '#94a3b8'}}>None</li> : worldState.props.map(p => (
@@ -339,30 +345,6 @@ function App() {
                 ))}
              </ul>
           </div>
-          
-          {agentsStatus.length > 0 && (
-            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', marginBottom: '8px', fontSize: '13px' }}>
-              <div style={{fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px'}}>Sims Character Status</div>
-              {agentsStatus.map((agent, i) => (
-                <div key={i} style={{ marginBottom: '12px' }}>
-                  <strong style={{ display: 'block', marginBottom: '4px', color: '#f8fafc', fontSize: '11px' }}>{agent.id}</strong>
-                  {['tension', 'energy', 'affection', 'suspicion'].map(stat => (
-                    <div key={stat} style={{ display: 'flex', alignItems: 'center', fontSize: '10px', marginBottom: '2px' }}>
-                      <div style={{ width: '55px', textTransform: 'capitalize', color: '#cbd5e1' }}>{stat}</div>
-                      <div style={{ flex: 1, background: '#1e293b', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ 
-                          width: `${Math.max(0, Math.min(100, agent.emotions[stat] * 100))}%`, 
-                          height: '100%', 
-                          background: stat === 'energy' ? '#22c55e' : stat === 'tension' ? '#ef4444' : stat === 'affection' ? '#ec4899' : '#eab308',
-                          transition: 'width 0.5s ease-in-out'
-                        }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
           
           <form onSubmit={handleSceneChange} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
              <input type="text" placeholder="New Location..." value={sceneInput} onChange={e => setSceneInput(e.target.value)} style={{flex: 1, padding: '6px', fontSize: '12px'}} />
@@ -421,7 +403,7 @@ function App() {
               ) : (
                 <>
                   {msg.agent_id && <span className="speaker">{msg.agent_id}: </span>}
-                  <span>{msg.content}</span>
+                  <span>{msg.agent_id ? msg.content.replace(/^[^:]+:\s*/, '') : msg.content}</span>
                 </>
               )}
             </div>
@@ -433,18 +415,23 @@ function App() {
       <div className="panel backstage-panel">
         <div className="panel-header">Backstage</div>
         <div className="vitals">
-          <div className="vital-bar">
-            <span>Tension</span>
-            <div className="progress-bg">
-              <div className="progress-fill" style={{ width: `${vitals.tension * 100}%`, background: '#ef4444' }}></div>
+          {agentsStatus.map(agent => (
+            <div key={agent.id} style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>{agent.id}</div>
+              {[['tension','#ef4444'],['energy','#22c55e'],['affection','#ec4899'],['suspicion','#eab308']].map(([stat, color]) => (
+                <div key={stat} className="vital-bar">
+                  <span style={{color}}>{stat.charAt(0).toUpperCase() + stat.slice(1)}</span>
+                  <input
+                    type="range" min="0" max="1" step="0.05"
+                    value={agent.emotions?.[stat] ?? 0.5}
+                    onChange={e => wsRef.current?.send(JSON.stringify({ type: "force_emotion", agent_id: agent.id, emotion: stat, value: parseFloat(e.target.value) }))}
+                    style={{ flex: 1, accentColor: color, cursor: 'pointer', height: '4px' }}
+                  />
+                  <span style={{fontSize:'10px', color:'#94a3b8', width:'28px', textAlign:'right'}}>{Math.round((agent.emotions?.[stat] ?? 0.5) * 100)}%</span>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="vital-bar">
-            <span>Energy</span>
-            <div className="progress-bg">
-              <div className="progress-fill" style={{ width: `${vitals.energy * 100}%`, background: '#f59e0b' }}></div>
-            </div>
-          </div>
+          ))}
         </div>
         <div className="monologue-stream" ref={monoRef}>
           {monologues.map((msg, i) => (

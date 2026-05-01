@@ -30,8 +30,14 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
+        dead = []
         for connection in self.active_connections:
-            await connection.send_json(message)
+            try:
+                await connection.send_json(message)
+            except Exception:
+                dead.append(connection)
+        for d in dead:
+            self.active_connections.remove(d)
 
 manager = ConnectionManager()
 
@@ -46,18 +52,29 @@ async def websocket_endpoint(websocket: WebSocket):
             payload = json.loads(data)
             
             if payload.get("type") == "start_scene":
-                # Save current custom agents before wiping state
-                current_agents = manager.state.agents
-                # Use model_copy(deep=True) to ensure we have a fresh state for every restart
+                # Deep-copy current agents so we don't mutate in-place references
+                import copy
+                from memory import clear_memories
+                saved_agents = copy.deepcopy(manager.state.agents)
+                
+                # Wipe ChromaDB episodic memory so old scenes don't bleed in
+                clear_memories()
+                
+                # Reset world state completely
                 manager.state = initial_state.model_copy(deep=True)
                 
-                # Restore custom roster but reset their emotions
-                for agent_id, agent in current_agents.items():
+                # Restore roster (with reset emotions) so custom config is preserved
+                for agent_id, agent in saved_agents.items():
                     agent.emotions.tension = 0.5
                     agent.emotions.energy = 0.8
                     agent.emotions.affection = 0.5
                     agent.emotions.suspicion = 0.5
                     manager.state.agents[agent_id] = agent
+                
+                # Cancel any running task
+                if manager.current_task and not manager.current_task.done():
+                    manager.current_task.cancel()
+                    manager.current_task = None
                     
                 manager.state.next_speaker = list(manager.state.agents.keys())[0] if manager.state.agents else "Narrator"
                 manager.state_history = [manager.state.model_copy(deep=True)]
@@ -92,9 +109,19 @@ async def websocket_endpoint(websocket: WebSocket):
             
             elif payload.get("type") == "rewind_turns":
                 turns = int(payload.get("turns", 1))
+                # Cancel any in-flight turn first
+                if manager.current_task and not manager.current_task.done():
+                    manager.current_task.cancel()
+                    manager.current_task = None
+                    
                 if len(manager.state_history) > turns:
                     manager.state_history = manager.state_history[:-turns]
                     manager.state = manager.state_history[-1].model_copy(deep=True)
+                    
+                    # Fix stale next_speaker: reset to first valid agent
+                    agent_ids = list(manager.state.agents.keys())
+                    if manager.state.next_speaker not in agent_ids and agent_ids:
+                        manager.state.next_speaker = agent_ids[0]
                     
                     reconstructed_messages = [{"type": "action", "content": f"[SYSTEM]: ⏪ Rewound {turns} turns."}]
                     reconstructed_monologues = []
@@ -105,10 +132,9 @@ async def websocket_endpoint(websocket: WebSocket):
                             content = line.split("]:", 1)[-1].strip()
                             reconstructed_monologues.append({"type": "monologue", "agent_id": agent_id, "content": content})
                         elif line.startswith("["):
-                            # System messages like [DIRECTOR INJECTS] or [SCENE CHANGE]
                             reconstructed_messages.append({"type": "action", "content": line})
                         else:
-                            agent_id = line.split(":")[0] if ":" in line else None
+                            agent_id = line.split(":")[0].strip() if ":" in line else None
                             reconstructed_messages.append({"type": "dialogue", "agent_id": agent_id, "content": line})
                             
                     await manager.broadcast({"type": "history_reset", "messages": reconstructed_messages, "monologues": reconstructed_monologues})
@@ -156,23 +182,27 @@ async def websocket_endpoint(websocket: WebSocket):
                     from langchain_core.messages import HumanMessage
                     config = ModelConfig(**payload.get("model_config", {}))
                     model = get_model(config)
-                    # Perform a tiny check
-                    await asyncio.to_thread(model.invoke, [HumanMessage(content="Is anyone there? Respond with one word.")], {"timeout": 5})
-                    await manager.broadcast({"type": "check_result", "status": "ok", "agent_id": payload.get("agent_id")})
+                    # Use async ainvoke (not sync invoke via thread, which passes args incorrectly)
+                    await model.ainvoke([HumanMessage(content="Is anyone there? Respond with one word.")])
+                    await websocket.send_json({"type": "check_result", "status": "ok", "agent_id": payload.get("agent_id")})
                 except Exception as e:
-                    await manager.broadcast({"type": "check_result", "status": "error", "message": str(e), "agent_id": payload.get("agent_id")})
+                    await websocket.send_json({"type": "check_result", "status": "error", "message": str(e), "agent_id": payload.get("agent_id")})
             
             elif payload.get("type") == "next_turn":
                 if manager.current_task and not manager.current_task.done():
                     await manager.broadcast({"type": "action", "content": "[SYSTEM]: An AI turn is already in progress..."})
                     continue
+                
+                # Snapshot the current state identity before the closure captures it
+                # This prevents configure/rewind from corrupting an in-flight turn
+                turn_state_snapshot = manager.state
                     
-                async def run_turn():
+                async def run_turn(snapshot=turn_state_snapshot):
                     try:
                         await manager.broadcast({"type": "action", "content": "[SYSTEM]: Triggering AI turn..."})
                         from agent import graph
-                        # Execute actual LangGraph turn asynchronously
-                        new_state = await graph.ainvoke(manager.state)
+                        # Execute actual LangGraph turn against the snapshot
+                        new_state = await graph.ainvoke(snapshot)
                         
                         if isinstance(new_state, dict):
                             # LangGraph returned a state dict
@@ -183,7 +213,17 @@ async def websocket_endpoint(websocket: WebSocket):
                             manager.state = new_state
                         
                         chat_hist = manager.state.chat_history
-                        actual_speaker = manager.state.next_speaker
+                        
+                        # The director runs FIRST and advances next_speaker.
+                        # So next_speaker now points to the NEXT actor, not who just spoke.
+                        # Derive actual speaker from the last dialogue line in history.
+                        actual_speaker = None
+                        for line in reversed(chat_hist):
+                            if not ("'s Thought]:" in line) and ":" in line:
+                                actual_speaker = line.split(":")[0].strip()
+                                break
+                        if not actual_speaker or actual_speaker not in manager.state.agents:
+                            actual_speaker = manager.state.next_speaker
                         
                         if len(chat_hist) >= 2:
                             monologue = chat_hist[-2]
@@ -270,12 +310,31 @@ async def websocket_endpoint(websocket: WebSocket):
                     })
                     if manager.state_history:
                         manager.state_history[-1] = manager.state.model_copy(deep=True)
+                        
+            elif payload.get("type") == "force_emotion":
+                agent_id = payload.get("agent_id")
+                emotion = payload.get("emotion")
+                value = payload.get("value")
+                if agent_id in manager.state.agents:
+                    setattr(manager.state.agents[agent_id].emotions, emotion, value)
+                    await manager.broadcast({"type": "agents_update", "agents": [v.model_dump() for v in manager.state.agents.values()]})
+                    
+            elif payload.get("type") == "force_scene_tension":
+                manager.state.scene.narrative_tension = payload.get("value")
+                await manager.broadcast({
+                    "type": "vitals_update",
+                    "vitals": {
+                        "tension": manager.state.scene.narrative_tension,
+                        "energy": 0.5
+                    }
+                })
                 
             elif payload.get("type") == "export_script":
                 try:
                     script_content = f"Title: {manager.state.scene.active_scene}\n\n"
                     for line in manager.state.chat_history:
-                        if line.startswith("["): # It's a thought
+                        # Skip internal thoughts only, keep dialogue and director events
+                        if "'s Thought]:" in line:
                             continue
                         script_content += f"{line}\n\n"
                     with open("exported_script.txt", "w") as f:
