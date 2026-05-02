@@ -10,6 +10,7 @@ import asyncio
 from app.agents.graph import graph
 from app.api.connection import ConnectionManager, SimulationState
 from app.models.payloads import NextTurnPayload
+from app.models.state import OrchestratorState
 
 
 async def handle_next_turn(
@@ -37,21 +38,30 @@ async def handle_next_turn(
 
                 new_state = await graph.ainvoke(snap)
 
-                # Merge result back into sim.state
-                if isinstance(new_state, dict):
-                    sim.state.chat_history = new_state.get("chat_history", sim.state.chat_history)
-                    sim.state.next_speaker = new_state.get("next_speaker", sim.state.next_speaker)
-                    scene_val = new_state.get("scene")
-                    if scene_val is not None:
-                        tc = (
-                            scene_val.get("turn_count")
-                            if isinstance(scene_val, dict)
-                            else getattr(scene_val, "turn_count", None)
-                        )
-                        if tc is not None:
-                            sim.state.scene.turn_count = tc
-                else:
-                    sim.state = new_state
+                # Merge result back into sim.state (Additively)
+                if not isinstance(new_state, OrchestratorState):
+                    print(f"[Turn] Warning: new_state is not OrchestratorState ({type(new_state)})")
+                    return
+
+                # 1. Append only the NEW messages (preserving Director injections in between)
+                new_lines = new_state.chat_history[len(snap.chat_history):]
+                sim.state.chat_history.extend(new_lines)
+                
+                # 2. Update next_speaker and turn_count
+                sim.state.next_speaker = new_state.next_speaker
+                sim.state.scene.turn_count = new_state.scene.turn_count
+
+                # 3. Merge Agent updates (emotions, etc.)
+                for aid, ag in new_state.agents.items():
+                    if aid in sim.state.agents:
+                        sim.state.agents[aid].emotions = ag.emotions
+
+                # 4. Selective World Update: Prop transfer
+                for p_new in new_state.scene.world_state.props:
+                    for p_curr in sim.state.scene.world_state.props:
+                        if p_new.id == p_curr.id and p_new.owner != p_curr.owner:
+                            p_curr.owner = p_new.owner
+                            break
 
                 chat_hist = sim.state.chat_history
 
@@ -129,4 +139,4 @@ async def handle_next_turn(
                     "content": f"[ERROR]: AI Generation failed. Is LM Studio/OpenRouter running? {e}",
                 })
 
-    sim.current_task = asyncio.create_task(run_turn())
+        sim.current_task = asyncio.create_task(run_turn())

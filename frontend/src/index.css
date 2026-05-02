@@ -227,14 +227,19 @@ select option { background:var(--s2); }
 
 input[type=range] {
   -webkit-appearance:none; appearance:none;
-  height:4px; border-radius:2px; background:var(--bhi);
-  border:none; padding:0; outline:none; cursor:pointer; width:100%;
+  height:6px; border-radius:3px; background:var(--s3);
+  border:1px solid var(--border); padding:0; outline:none; cursor:pointer; width:100%;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance:none;
-  width:16px; height:16px; border-radius:50%;
-  border:2.5px solid var(--s1); cursor:pointer;
-  box-shadow:0 2px 8px rgba(0,0,0,.6);
+  width:18px; height:18px; border-radius:50%;
+  background: var(--c, var(--purple));
+  border:3px solid var(--s1); cursor:pointer;
+  box-shadow:0 0 12px var(--c, rgba(167,139,250,.4));
+  transition: transform .1s;
+}
+input[type=range]:active::-webkit-slider-thumb {
+  transform: scale(1.2);
 }
 
 /* ─── Buttons inside panels ──────────────────────────────────────────── */

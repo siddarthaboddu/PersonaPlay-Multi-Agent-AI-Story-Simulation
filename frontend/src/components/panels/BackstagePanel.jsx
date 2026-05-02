@@ -70,9 +70,9 @@ export function BackstagePanel() {
                       type="range" min="0" max="1" step="0.05"
                       value={ag.emotions?.[s] ?? 0.5}
                       onChange={(e) => forceEmotion(ag.id, s, parseFloat(e.target.value))}
-                      style={{ flex: 1, accentColor: c }}
+                      style={{ flex: 1, accentColor: c, '--c': c }}
                     />
-                    <span className="vpct">{Math.round((ag.emotions?.[s] ?? 0.5) * 100)}%</span>
+                    <span className="vpct" style={{ color: c }}>{Math.round((ag.emotions?.[s] ?? 0.5) * 100)}%</span>
                   </div>
                 ))}
               </div>

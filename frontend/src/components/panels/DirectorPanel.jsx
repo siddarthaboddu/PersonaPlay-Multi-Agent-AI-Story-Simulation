@@ -37,7 +37,7 @@ export function DirectorPanel() {
             <input 
               type="range" min="0" max="1" step="0.05" value={vitals.tension || 0.5}
               onChange={(e) => forceTension(parseFloat(e.target.value))}
-              style={{ accentColor: 'var(--amber)' }}
+              style={{ accentColor: 'var(--amber)', '--c': 'var(--amber)' }}
             />
           </div>
         </div>
