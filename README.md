@@ -1,6 +1,6 @@
-# 🎭 PersonaPlay Engine
+# 🎭 PersonaPlay: Multi-Agent AI Story Simulation
 
-PersonaPlay is an advanced, multi-agent theatrical simulation engine. It allows users to act as a "Director" overseeing a live scene where multiple AI actors driven by Large Language Models interact, think, and evolve in real time. 
+PersonaPlay is an advanced, multi-agent AI story simulation engine. It allows users to act as a "Director" overseeing a live scene where multiple AI actors driven by Large Language Models interact, think, and evolve in real time. 
 
 Built with **FastAPI**, **LangGraph**, and **React**, it features a robust concurrent WebSocket architecture, enabling instant director interventions (like injecting chaos or teleporting characters) without disrupting ongoing AI thought processes.
 

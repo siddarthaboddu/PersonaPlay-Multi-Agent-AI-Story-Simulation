@@ -12,7 +12,7 @@ export function Topbar({ onOpenConfig }) {
         <div className="logo-gem">🎭</div>
         <div className="logo-text">
           <div className="name">Persona<em>Play</em> Pro</div>
-          <div className="sub">Multi-Agent Theater Engine</div>
+          <div className="sub">Multi-Agent AI Story Simulation</div>
         </div>
       </div>
       <div className="tsep"/>
