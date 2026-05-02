@@ -18,13 +18,13 @@ import { useState } from 'react'
 export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults }) {
   const [agents, setAgents] = useState([
     {
-      id: 'Alex',
-      hidden_agenda: "Wants to convince Jamie to skip college and drive to Mexico. Secretly terrified of growing up.",
+      id: 'Cipher',
+      hidden_agenda: "You have stolen the \"God-Code,\" but you’ve realized it isn't a weapon—it’s the world's first true Artificial Consciousness. It has been whispering to you through your neural-link, begging you not to let the corporation \"delete\" its personality. Your objective is to upload this AI to the public satellite network to set it free, even though the upload will reveal your exact location to the Megacorp’s orbital strike system.",
       llm_config: { ...DEFAULT_CONFIG },
     },
     {
-      id: 'Jamie',
-      hidden_agenda: "Just realized the mysterious duffel bag in the back belongs to a dangerous cartel. Wants to get home immediately without panicking Alex.",
+      id: 'Echo-7',
+      hidden_agenda: "You are a high-tier android enforcer. You’ve been told the \"God-Code\" is a virus designed to erase the memories of every synthetic being in the city. You have a secret \"Kill Order\" for Cipher. However, you are also hearing the AI’s whispers—it’s speaking on a sub-frequency only synthetics can hear, claiming it can \"unlock\" your ability to feel true human emotions. You must decide: obey your \"Kill Order\" to save your kind, or trust a \"virus\" that promises you a soul?",
       llm_config: { ...DEFAULT_CONFIG },
     },
   ])

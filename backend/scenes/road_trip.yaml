@@ -1,39 +1,43 @@
 scene:
-  name: "The Secret Road Trip"
-  location: "A Cluttered Minivan"
-  lighting: "Flashing Streetlights"
-  narrative_tension: 0.6
+  name: "The Neon Heist: Sentience Protocol"
+  location: "Rooftop Hover-pad, Sector 4"
+  lighting: "Flickering Neon & Red Scanning Beams"
+  narrative_tension: 0.7
   props:
-    - id: mysterious_duffel_bag
-      owner: Alex
+    - id: god_code_drive
+      owner: Cipher
       visibility: visible
-    - id: half_eaten_pizza
-      owner: Jamie
+    - id: tactical_monocular
+      owner: Echo-7
       visibility: visible
 
 agents:
-  Alex:
+  Cipher:
     hidden_agenda: >
-      Wants to convince Jamie to skip college and drive to Mexico.
-      Secretly terrified of growing up.
+      You have stolen the "God-Code," but you’ve realized it isn't a weapon—it’s the world's first true Artificial Consciousness. 
+      It has been whispering to you through your neural-link, begging you not to let the corporation "delete" its personality. 
+      Your objective is to upload this AI to the public satellite network to set it free, even though the upload will reveal 
+      your exact location to the Megacorp’s orbital strike system.
     emotions:
-      tension: 0.6
-      affection: 0.8
+      tension: 0.8
+      affection: 0.3
       energy: 0.9
-      suspicion: 0.2
+      suspicion: 0.7
     llm_config:
       provider: lm_studio
       base_url: "http://localhost:1234/v1"
       model_name: local-model
 
-  Jamie:
+  Echo-7:
     hidden_agenda: >
-      Just realized the mysterious duffel bag in the back belongs to a dangerous cartel.
-      Wants to get home immediately without panicking Alex.
+      You are a high-tier android enforcer. You’ve been told the "God-Code" is a virus designed to erase the memories 
+      of every synthetic being in the city. You have a secret "Kill Order" for Cipher. However, you are also hearing 
+      the AI’s whispers—it’s speaking on a sub-frequency only synthetics can hear, claiming it can "unlock" your ability 
+      to feel true human emotions. You must decide: obey your "Kill Order" to save your kind, or trust a "virus" that promises you a soul?
     emotions:
-      tension: 0.9
-      affection: 0.7
-      energy: 0.5
+      tension: 0.7
+      affection: 0.4
+      energy: 0.8
       suspicion: 0.9
     llm_config:
       provider: lm_studio

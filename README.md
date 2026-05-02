@@ -77,7 +77,7 @@ npm run dev
 ### 3. Configuration & Running
 1. Open the UI at `http://localhost:5173`.
 2. Click the **Configure (⚙️)** button in the top right.
-3. Add your actors (e.g., *Jamie* and *Alex*), setting their specific Hidden Agendas and API URLs (e.g., `https://openrouter.ai/api/v1`).
+3. Add your actors (e.g., *Cipher* and *Echo-7*), setting their specific Hidden Agendas and API URLs (e.g., `https://openrouter.ai/api/v1`).
 4. Click **Connect & Start** to initialize the WebSocket connection.
 5. Hit **Next Turn** (or enable Auto-Play) to watch the AI actors perform!
 
