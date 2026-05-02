@@ -43,6 +43,7 @@ class AgentState(BaseModel):
     id: str
     emotions: EmotionVector
     hidden_agenda: Optional[str] = None
+    traits: Optional[str] = None  # New field for character personality/description
     llm_config: ModelConfig = ModelConfig()
 
 

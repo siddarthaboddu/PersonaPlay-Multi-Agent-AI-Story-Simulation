@@ -8,8 +8,12 @@ import { BackstagePanel } from './components/panels/BackstagePanel'
 import { ConfigModal } from './components/modals/ConfigModal'
 
 export default function App() {
-  const { 
-    configureScene, checkModel, 
+  const {
+    configureScene,
+    checkModel,
+    vitals,
+    world,
+    agents
   } = useSimulationContext()
   
   const [cfgOpen, setCfgOpen] = useState(false)
@@ -20,8 +24,10 @@ export default function App() {
       <ConfigModal 
         isOpen={cfgOpen} 
         onClose={() => setCfgOpen(false)}
-        onSave={(agents) => {
-          configureScene(agents)
+        currentScene={{ active_scene: vitals.scene_name, world_state: world }}
+        currentAgents={agents}
+        onSave={(agents, metadata) => {
+          configureScene(agents, metadata)
           setCfgOpen(false)
         }}
         onTest={(id, cfg) => {

@@ -26,8 +26,6 @@ class Settings(BaseSettings):
     # Auto-play
     auto_turn_delay_ms: int = 3200
 
-    # Default scene file (relative to backend/)
-    default_scene: str = "scenes/road_trip.yaml"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -1,6 +1,10 @@
-export function Avatar({ agent, index, isSpeaking, color }) {
-  const left = 18 + ((index * 45) % 58) + (agent.emotions?.energy ?? 0.5) * 12
-  const top = 22 + ((index * 22) % 34) + (agent.emotions?.tension ?? 0.5) * 14
+export function Avatar({ agent, index, isSpeaking, color, total }) {
+  // Semi-circle theater layout
+  const angle = (index / (total - 1 || 1)) * 120 - 60 // -60 to 60 degrees
+  const radius = 35 // distance from center
+  
+  const left = 50 + radius * Math.sin((angle * Math.PI) / 180)
+  const top = 50 - radius * Math.cos((angle * Math.PI) / 180) + 15
 
   return (
     <div 

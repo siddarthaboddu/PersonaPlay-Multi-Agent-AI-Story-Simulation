@@ -103,7 +103,13 @@ export function useSimulation(send, subscribe) {
   const forceTension  = useCallback((value) => send({ type: 'force_scene_tension', value }), [send])
   const forceEmotion  = useCallback((agent_id, emotion, value) => send({ type: 'force_emotion', agent_id, emotion, value }), [send])
   const forceGiveProp = useCallback((prop_id, owner) => send({ type: 'force_give_prop', prop_id, owner }), [send])
-  const configureScene = useCallback((agents) => send({ type: 'configure_scene', agents }), [send])
+  const configureScene = useCallback((agents, metadata = {}) => send({
+    type: 'configure_scene',
+    agents,
+    scene_name: metadata.sceneName,
+    location: metadata.location,
+    lighting: metadata.lighting
+  }), [send])
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
   const pause         = useCallback(() => {
     setAuto(false)

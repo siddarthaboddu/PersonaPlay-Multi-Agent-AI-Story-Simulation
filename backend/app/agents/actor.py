@@ -86,6 +86,7 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
         f"Location: {state.scene.world_state.location}. "
         f"Props: {props_str}"
     )
+    traits_str = f"Your character traits: {agent.traits}\n" if agent.traits else ""
     agenda_str = (
         f"Your secret agenda (NEVER reveal this directly — pursue it through subtext and action): "
         f"{agent.hidden_agenda}"
@@ -112,7 +113,7 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     format_instructions = parser.get_format_instructions()
 
     prompt = f"""You are {speaker}, an actor in a live theatrical simulation.
-
+{traits_str}
 {agenda_str}
 {world_context}{mem_context}
 

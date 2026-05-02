@@ -52,6 +52,9 @@ class ForceGivePropPayload(BaseModel):
 class ConfigureScenePayload(BaseModel):
     type: Literal["configure_scene"]
     agents: List[Dict[str, Any]]
+    scene_name: Optional[str] = None
+    location: Optional[str] = None
+    lighting: Optional[str] = None
 
 
 class CheckModelPayload(BaseModel):

@@ -18,28 +18,60 @@ async def handle_configure_scene(
     payload: ConfigureScenePayload,
 ) -> None:
     try:
+        # Update scene metadata if provided
+        if payload.scene_name:
+            sim.state.scene.active_scene = payload.scene_name
+        if payload.location:
+            sim.state.scene.world_state.location = payload.location
+        if payload.lighting:
+            sim.state.scene.world_state.lighting = payload.lighting
+
         new_agents: dict = {}
         for char in payload.agents:
             char_id = char.get("id")
             new_agents[char_id] = AgentState(
                 id=char_id,
                 hidden_agenda=char.get("hidden_agenda"),
+                traits=char.get("traits"),
                 emotions=EmotionVector(
                     **char.get("emotions", {
                         "tension": 0.5, "affection": 0.5,
                         "energy": 0.5, "suspicion": 0.5,
                     })
                 ),
-                llm_config=ModelConfig(**char.get("model_config", {})),
+                llm_config=ModelConfig(**char.get("llm_config", {})),
             )
         sim.state.agents = new_agents
+
+        # Ensure next_speaker is valid
+        if new_agents:
+            sim.state.next_speaker = list(new_agents.keys())[0]
+
+        # Reset history and turn count for the "fresh start"
+        sim.state.scene.turn_count = 0
+        sim.state.chat_history = []
+        sim.history = [sim.snapshot()]
+
         await manager.broadcast({
             "type": "action",
-            "content": f"[SYSTEM]: Roster updated with {len(new_agents)} actors.",
+            "content": f"[SYSTEM]: Simulation reset and configured with {len(new_agents)} actors.",
+        })
+        await manager.broadcast({
+            "type": "world_update",
+            "world": sim.state.scene.world_state.model_dump(),
         })
         await manager.broadcast({
             "type": "agents_update",
             "agents": [v.model_dump() for v in sim.state.agents.values()],
+        })
+        await manager.broadcast({
+            "type": "vitals_update",
+            "vitals": {
+                "scene_name": sim.state.scene.active_scene,
+                "tension": sim.state.scene.narrative_tension,
+                "energy": 0.5,
+                "turn_count": sim.state.scene.turn_count,
+            },
         })
     except Exception as e:
         print(f"[Config] Error configuring scene: {e}")

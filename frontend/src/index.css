@@ -473,6 +473,65 @@ button { font-family:inherit; cursor:pointer; border:none; outline:none; transit
 .badge.load { background:rgba(252,211,77,.15);  color:var(--amber);border:1px solid rgba(252,211,77,.35); }
 .badge.idle { background:var(--s2); color:var(--t4); border:1px solid var(--bhi); }
 
+/* ─── Forms & Field Groups ───────────────────────────────────────────── */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.field-group label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.field-group .hint {
+  font-size: 11px;
+  color: var(--t4);
+  margin-bottom: 2px;
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.emotion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  margin-top: 8px;
+  background: rgba(255,255,255,.02);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.e-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t2);
+  margin-bottom: 6px;
+}
+.e-label span {
+  color: var(--t4);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+
+textarea {
+  font-family: inherit; font-size: 13px; font-weight: 400;
+  background: var(--s1); border: 1px solid var(--bhi);
+  color: var(--t1); padding: 10px 12px; border-radius: 8px;
+  outline: none; width: 100%; transition: border-color .15s;
+  resize: vertical;
+}
+textarea:focus { border-color: var(--purple); }
+
 /* ─── Scrollbar ──────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-track { background:transparent; }

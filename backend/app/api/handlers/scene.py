@@ -19,7 +19,17 @@ async def handle_start_scene(
     async with sim.lock:
         sim.cancel_task()
         await clear_memories()
-        sim.reset(preserve_agents=True)
+        
+        # Session Reset (preserves current Blueprint: scene metadata + agent roster)
+        sim.state.scene.turn_count = 0
+        sim.state.chat_history = []
+        for agent in sim.state.agents.values():
+            agent.emotions.tension = 0.5
+            agent.emotions.energy = 0.8
+            agent.emotions.affection = 0.5
+            agent.emotions.suspicion = 0.5
+        
+        sim.history = [sim.snapshot()]
 
     await manager.broadcast({"type": "history_reset", "messages": [], "monologues": []})
     await manager.broadcast({

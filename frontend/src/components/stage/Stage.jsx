@@ -15,6 +15,7 @@ export function Stage() {
           key={ag.id} 
           agent={ag} 
           index={i} 
+          total={agents.length}
           isSpeaking={lastSpk === ag.id}
           color={agentColor(i)}
         />

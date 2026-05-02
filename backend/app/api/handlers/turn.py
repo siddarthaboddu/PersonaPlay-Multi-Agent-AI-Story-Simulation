@@ -39,6 +39,9 @@ async def handle_next_turn(
                 new_state = await graph.ainvoke(snap)
 
                 # Merge result back into sim.state (Additively)
+                if isinstance(new_state, dict):
+                    new_state = OrchestratorState.model_validate(new_state)
+                
                 if not isinstance(new_state, OrchestratorState):
                     print(f"[Turn] Warning: new_state is not OrchestratorState ({type(new_state)})")
                     return
@@ -122,6 +125,7 @@ async def handle_next_turn(
                 await manager.broadcast({
                     "type": "vitals_update",
                     "vitals": {
+                        "scene_name": sim.state.scene.active_scene,
                         "tension": sim.state.scene.narrative_tension,
                         "energy": energy,
                         "turn_count": sim.state.scene.turn_count,
