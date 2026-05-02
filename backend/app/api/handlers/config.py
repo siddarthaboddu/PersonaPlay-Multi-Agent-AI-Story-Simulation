@@ -9,7 +9,7 @@ from app.models.payloads import (
     ForceGivePropPayload,
     ForceSceneTensionPayload,
 )
-from app.models.state import AgentState, EmotionVector, ModelConfig
+from app.models.state import AgentState, EmotionVector, ModelConfig, Prop
 
 
 async def handle_configure_scene(
@@ -43,6 +43,17 @@ async def handle_configure_scene(
                     llm_config=ModelConfig(**char.get("llm_config", {})),
                 )
             sim.state.agents = new_agents
+            
+            # Update props if provided
+            if payload.props is not None:
+                sim.state.scene.world_state.props = [
+                    Prop(
+                        id=p.get("id", "Prop"),
+                        owner=p.get("owner", "world"),
+                        description=p.get("description", ""),
+                        visibility=p.get("visibility", "visible")
+                    ) for p in payload.props
+                ]
 
             # Ensure next_speaker is valid
             if new_agents:

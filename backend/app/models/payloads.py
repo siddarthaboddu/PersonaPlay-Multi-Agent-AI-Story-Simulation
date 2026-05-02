@@ -55,6 +55,7 @@ class ConfigureScenePayload(BaseModel):
     scene_name: Optional[str] = None
     location: Optional[str] = None
     lighting: Optional[str] = None
+    props: Optional[List[Dict[str, Any]]] = None
 
 
 class CheckModelPayload(BaseModel):

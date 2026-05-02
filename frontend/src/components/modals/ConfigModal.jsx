@@ -26,7 +26,16 @@ agents:
   - id: "Sasha"
     traits: "Nervous, overly talkative"
     hidden_agenda: "Steal the code and sell it to the highest bidder."
-    emotions: { tension: 0.9, energy: 0.7 }`
+    emotions: { tension: 0.9, energy: 0.7 }
+props:
+  - id: "God-Code"
+    owner: "Ren"
+    description: "A pulsating data-drive containing the world's first true consciousness."
+    visibility: "visible"
+  - id: "EMP-Grenade"
+    owner: "world"
+    description: "Taped under the subway bench. Can disable Sasha's synthetic enforcer units."
+    visibility: "hidden"`
 
 import { useState, useEffect } from 'react'
 import yaml from 'js-yaml'
@@ -39,6 +48,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
   const [location, setLocation] = useState('')
   const [lighting, setLighting] = useState('')
   const [agents, setAgents] = useState([])
+  const [props, setProps] = useState([])
 
   const handleYamlSync = () => {
     try {
@@ -68,6 +78,14 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           }
         })))
       }
+      if (data.props && Array.isArray(data.props)) {
+        setProps(data.props.map(p => ({
+          id: p.id || 'Prop',
+          owner: p.owner || 'world',
+          description: p.description || '',
+          visibility: p.visibility || 'visible'
+        })))
+      }
       setView('form')
     } catch (e) {
       alert("⚠️ YAML Parse Error: " + e.message)
@@ -77,6 +95,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
   const exportToYaml = () => {
     const data = {
       scene: { name: sceneName, location, lighting },
+      props: props,
       agents: agents.map(a => ({
         id: a.id,
         traits: a.traits,
@@ -95,6 +114,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
       setSceneName(currentScene?.active_scene || '')
       setLocation(currentScene?.world_state?.location || '')
       setLighting(currentScene?.world_state?.lighting || '')
+      setProps(currentScene?.world_state?.props || [])
       
       if (currentAgents && currentAgents.length > 0) {
         setAgents(currentAgents.map(a => ({
@@ -147,6 +167,20 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
       emotions: { ...next[agentIdx].emotions, [emotion]: parseFloat(value) }
     }
     setAgents(next)
+  }
+
+  const mutateProp = (i, field, value) => {
+    const next = [...props]
+    next[i] = { ...next[i], [field]: value }
+    setProps(next)
+  }
+
+  const addProp = () => {
+    setProps([...props, { id: `item_${props.length + 1}`, owner: 'world', description: '', visibility: 'visible' }])
+  }
+
+  const removeProp = (i) => {
+    setProps(props.filter((_, idx) => idx !== i))
   }
 
   const addAgent = () =>
@@ -220,6 +254,45 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Props Section */}
+            <div className="ccard" style={{ borderLeftColor: 'var(--cyan)', padding: '16px', marginTop: '16px' }}>
+              <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--cyan)', marginBottom: '12px' }}>
+                📦 Props & Items
+              </div>
+              
+              {props.map((p, i) => (
+                <div key={i} className="prop-row" style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="crow2" style={{ marginBottom: '8px' }}>
+                    <input
+                      type="text" value={p.id}
+                      onChange={(e) => mutateProp(i, 'id', e.target.value)}
+                      placeholder="Prop ID"
+                      style={{ fontWeight: 700 }}
+                    />
+                    <select value={p.owner} onChange={(e) => mutateProp(i, 'owner', e.target.value)}>
+                      <option value="world">In World</option>
+                      {agents.map(ag => (
+                        <option key={ag.id} value={ag.id}>Owned by {ag.id}</option>
+                      ))}
+                    </select>
+                    <select value={p.visibility} onChange={(e) => mutateProp(i, 'visibility', e.target.value)}>
+                      <option value="visible">Visible</option>
+                      <option value="hidden">Hidden</option>
+                    </select>
+                    <button onClick={() => removeProp(i)} style={{ color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                  <textarea
+                    className="prop-desc"
+                    value={p.description}
+                    onChange={(e) => mutateProp(i, 'description', e.target.value)}
+                    placeholder="Description..."
+                    rows={1}
+                  />
+                </div>
+              ))}
+              <button className="btn-add" style={{ padding: '6px 14px', fontSize: '11px' }} onClick={addProp}>+ Add Prop</button>
             </div>
 
             {/* Agent Roster */}
@@ -323,7 +396,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             Factory Reset
           </button>
           <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-pri" onClick={() => onSave(agents, { sceneName, location, lighting })}>Save &amp; Apply</button>
+          <button className="btn-pri" onClick={() => onSave(agents, { sceneName, location, lighting, props })}>Save &amp; Apply</button>
         </div>
       </div>
     </div>

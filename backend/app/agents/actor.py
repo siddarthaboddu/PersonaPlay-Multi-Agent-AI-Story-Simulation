@@ -82,13 +82,15 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     # ── 2. Beat-driven writing ────────────────────────────────────────────────
     beat = get_beat(turn_num)
 
-    props_str = ", ".join(
-        f"{p.id} (owned by {p.owner})" for p in state.scene.world_state.props
+    props_str = "; ".join(
+        f"{p.id} ({p.description}) [Owned by: {p.owner}]" 
+        for p in state.scene.world_state.props if p.visibility == "visible"
     )
     world_context = (
-        f"Scene: {state.scene.active_scene}, "
+        f"Scene: {state.scene.active_scene}. "
         f"Location: {state.scene.world_state.location}. "
-        f"Props: {props_str}"
+        f"Atmosphere: {state.scene.world_state.lighting}. "
+        f"Items in Scene: {props_str if props_str else 'None'}"
     )
     traits_str = f"Your character traits: {agent.traits}\n" if agent.traits else ""
     agenda_str = (

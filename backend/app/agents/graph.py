@@ -56,8 +56,18 @@ def get_initial_state() -> OrchestratorState:
                 location="Rooftop Hover-pad, Sector 4",
                 lighting="Flickering Neon & Red Scanning Beams",
                 props=[
-                    Prop(id="god_code_drive", owner="Cipher", visibility="visible"),
-                    Prop(id="tactical_monocular", owner="Echo-7", visibility="visible"),
+                    Prop(
+                        id="god_code_drive", 
+                        owner="Cipher", 
+                        description="A pulsating data-drive containing the world's first true consciousness.", 
+                        visibility="visible"
+                    ),
+                    Prop(
+                        id="tactical_monocular", 
+                        owner="Echo-7", 
+                        description="High-end optical sensor with a cracked lens, displaying scrolling heat-signatures.", 
+                        visibility="visible"
+                    ),
                 ],
             ),
             narrative_tension=0.7,

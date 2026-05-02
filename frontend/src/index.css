@@ -553,7 +553,37 @@ textarea:focus { border-color: var(--purple); }
   background:#050710; border:1px solid var(--border); border-radius:10px;
   line-height:1.6; color:var(--t2); padding:16px;
 }
-.yaml-area:focus { border-color:var(--purple); box-shadow:0 0 20px rgba(167,139,250,.1); }
+.yaml-area:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.prop-row {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.prop-desc {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.8);
+  width: 100%;
+  padding: 8px;
+  resize: vertical;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.prop-desc:focus {
+  outline: none;
+  border-color: var(--cyan);
+  background: rgba(0,0,0,0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .btn-sync {
   width:100%; padding:12px; border-radius:10px; font-size:13px; font-weight:800;
