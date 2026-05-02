@@ -84,6 +84,10 @@ class ExportScriptPayload(BaseModel):
     type: Literal["export_script"]
 
 
+class SystemResetPayload(BaseModel):
+    type: Literal["system_reset"]
+
+
 # Discriminated union — validated by 'type' field
 class InboundPayload(RootModel):
     root: Annotated[
@@ -101,6 +105,7 @@ class InboundPayload(RootModel):
             ForceEmotionPayload,
             ForceSceneTensionPayload,
             ExportScriptPayload,
+            SystemResetPayload,
         ],
         Field(discriminator="type"),
     ]

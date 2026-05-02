@@ -18,7 +18,9 @@ export function Topbar({ onOpenConfig }) {
       <div className="tsep"/>
 
       <div className="ctrl-group">
-        <button className="cb green" onClick={startScene}>▶ Start Scene</button>
+        <button className="cb green" onClick={startScene}>
+          {turnCount > 0 ? "🔄 Restart Session" : "▶ Start Scene"}
+        </button>
         <button className="cb"       onClick={pause}>⏸ Pause</button>
         <button className="cb red"   onClick={stopScene}>⏹ Stop</button>
       </div>

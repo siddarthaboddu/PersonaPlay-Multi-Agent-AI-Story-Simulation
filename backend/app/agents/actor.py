@@ -46,12 +46,16 @@ async def _generate_monologue(
     """Generate one internal monologue for a single agent."""
     try:
         model = get_model(agent.llm_config, creative=True)
+        traits = f"Traits: {agent.traits}\n" if agent.traits else ""
+        agenda = f"SECRET MOTIVE: {agent.hidden_agenda}\n" if agent.hidden_agenda else ""
+        
         prompt = (
             f"You are {agent_id}. {world_context}\n"
+            f"{traits}{agenda}"
             f"Story context: {context_summary}\n"
             f"Dramatic beat: {beat}\n"
-            f"What is ONE new specific thought you have RIGHT NOW that you haven't had before? "
-            f"One short sentence only. Do not repeat previous thoughts."
+            f"What is ONE new specific thought you have RIGHT NOW that reflects your secret motive? "
+            f"One short sentence only. Do not reveal the secret directly."
         )
         res = await model.ainvoke([HumanMessage(content=prompt)])
         return {"agent_id": agent_id, "monologue": res.content.strip()}
@@ -124,12 +128,11 @@ YOUR INTERNAL THOUGHT RIGHT NOW: {speaker_mono}
 
 DRAMATIC BEAT FOR THIS TURN: {beat}
 
-ABSOLUTE RULES:
 1. Your dialogue MUST be completely different from anything in the story context above.
-2. You must ADVANCE the story: introduce a new detail, physical action, question, revelation, or decision.
-3. Do NOT restate your position from previous turns — escalate, pivot, or react to something new.
-4. Stay in character. Use subtext — pursue your agenda without stating it directly.
-5. 1-3 sentences maximum. Quality over quantity.
+2. ACKNOWLEDGE & REACT: If there is a [DIRECTOR INJECTS] event, you must react to it immediately.
+3. SUBTEXT & SECRET MOTIVE: Everything you say must subtly move you closer to your SECRET MOTIVE. Do not state it, but pursue it.
+4. SYNCHRONIZE: Your words must reflect the tone and intent of your INTERNAL THOUGHT.
+5. ESCALATE: 1-3 sentences maximum. Stay in character. Say something NEW.
 
 {format_instructions}
 Output ONLY valid JSON. No preamble."""

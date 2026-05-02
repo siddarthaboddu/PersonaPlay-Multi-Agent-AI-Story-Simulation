@@ -110,6 +110,7 @@ export function useSimulation(send, subscribe) {
     location: metadata.location,
     lighting: metadata.lighting
   }), [send])
+  const systemReset   = useCallback(() => send({ type: 'system_reset' }), [send])
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
   const pause         = useCallback(() => {
     setAuto(false)
@@ -130,6 +131,6 @@ export function useSimulation(send, subscribe) {
     startScene, stopScene, nextTurn, rewind, exportScript,
     changeScene, injectChaos, generateImage,
     forceTension, forceEmotion, forceGiveProp,
-    configureScene, checkModel, pause,
+    configureScene, checkModel, pause, systemReset,
   }
 }

@@ -21,6 +21,7 @@ from app.api.handlers.config import (
     handle_force_emotion,
     handle_force_give_prop,
     handle_force_scene_tension,
+    handle_system_reset,
 )
 from app.api.handlers.director import (
     handle_director_command,
@@ -84,6 +85,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_force_emotion(manager, sim, payload)
             elif t == "force_scene_tension":
                 await handle_force_scene_tension(manager, sim, payload)
+            elif t == "system_reset":
+                await handle_system_reset(manager, sim)
 
     except WebSocketDisconnect:
         pass

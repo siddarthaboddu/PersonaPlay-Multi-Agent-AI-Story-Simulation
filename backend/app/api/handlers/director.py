@@ -11,31 +11,39 @@ async def handle_director_command(
     sim: SimulationState,
     payload: DirectorCommandPayload,
 ) -> None:
-    command = payload.command
+    async with sim.lock:
+        command = payload.command
 
-    if command.lower().startswith("generate image"):
-        url, prompt = build_scene_image_url(sim.state.scene.world_state)
+        if command.lower().startswith("generate image"):
+            url, prompt = build_scene_image_url(sim.state.scene.world_state)
+            await manager.broadcast({
+                "type": "action",
+                "content": "[DIRECTOR INJECTS]: Generating scene image…",
+            })
+            await manager.broadcast({"type": "image_update", "url": url, "prompt": prompt})
+            return
+
+        # Chaos injection
+        chaos_msg = f"[DIRECTOR INJECTS]: {command}"
+        sim.state.chat_history.append(chaos_msg)
+
+        await manager.broadcast({"type": "action", "content": chaos_msg})
+        sim.state.scene.narrative_tension = min(sim.state.scene.narrative_tension + 0.2, 1.0)
         await manager.broadcast({
-            "type": "action",
-            "content": "[DIRECTOR INJECTS]: Generating scene image…",
+            "type": "vitals_update",
+            "vitals": {
+                "tension": sim.state.scene.narrative_tension,
+                "energy": 0.9,
+            },
         })
-        await manager.broadcast({"type": "image_update", "url": url, "prompt": prompt})
-        return
+        sim.update_last_history()
 
-    # Chaos injection
-    chaos_msg = f"[DIRECTOR INJECTS]: {command}"
-    sim.state.chat_history.append(chaos_msg)
-
-    await manager.broadcast({"type": "action", "content": chaos_msg})
-    sim.state.scene.narrative_tension = min(sim.state.scene.narrative_tension + 0.2, 1.0)
-    await manager.broadcast({
-        "type": "vitals_update",
-        "vitals": {
-            "tension": sim.state.scene.narrative_tension,
-            "energy": 0.9,
-        },
-    })
-    sim.update_last_history()
+    # ── Trigger Immediate AI Reaction ────────────────────────────────────────
+    # We do this OUTSIDE the lock to allow handle_next_turn to acquire it.
+    from app.api.handlers.turn import handle_next_turn
+    from app.models.payloads import NextTurnPayload
+    
+    await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
 
 
 async def handle_rewind_turns(

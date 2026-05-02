@@ -13,13 +13,81 @@ const PROVIDER_DEFAULTS = {
   google:      { base_url: '',                                   model_name: 'gemini-1.5-pro-latest' },
 }
 
-import { useState, useEffect } from 'react'
+const SAMPLE_YAML = `# PersonaPlay Blueprint
+scene:
+  name: "The Midnight Exchange"
+  location: "Abandoned Subway Station"
+  lighting: "Flickering emergency lights"
+agents:
+  - id: "Ren"
+    traits: "Stoic, technological genius"
+    hidden_agenda: "Protect the God-Code at all costs."
+    emotions: { tension: 0.6, energy: 0.4 }
+  - id: "Sasha"
+    traits: "Nervous, overly talkative"
+    hidden_agenda: "Steal the code and sell it to the highest bidder."
+    emotions: { tension: 0.9, energy: 0.7 }`
 
-export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, currentScene, currentAgents }) {
+import { useState, useEffect } from 'react'
+import yaml from 'js-yaml'
+
+export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, currentScene, currentAgents, onSystemReset }) {
+  const [view, setView] = useState('form') // 'form' or 'yaml'
+  const [yamlText, setYamlText] = useState('')
+  
   const [sceneName, setSceneName] = useState('')
   const [location, setLocation] = useState('')
   const [lighting, setLighting] = useState('')
   const [agents, setAgents] = useState([])
+
+  const handleYamlSync = () => {
+    try {
+      const data = yaml.load(yamlText)
+      if (!data) return
+      if (data.scene) {
+        if (data.scene.name) setSceneName(data.scene.name)
+        if (data.scene.location) setLocation(data.scene.location)
+        if (data.scene.lighting) setLighting(data.scene.lighting)
+      }
+      if (data.agents && Array.isArray(data.agents)) {
+        setAgents(data.agents.map(a => ({
+          id: a.id || 'Unnamed',
+          traits: a.traits || '',
+          hidden_agenda: a.hidden_agenda || '',
+          emotions: {
+            tension: a.emotions?.tension ?? 0.5,
+            affection: a.emotions?.affection ?? 0.5,
+            energy: a.emotions?.energy ?? 0.5,
+            suspicion: a.emotions?.suspicion ?? 0.5
+          },
+          llm_config: {
+            provider: a.llm_config?.provider || 'lm_studio',
+            model_name: a.llm_config?.model_name || 'local-model',
+            api_key: a.llm_config?.api_key || '',
+            base_url: a.llm_config?.base_url || 'http://localhost:1234/v1'
+          }
+        })))
+      }
+      setView('form')
+    } catch (e) {
+      alert("⚠️ YAML Parse Error: " + e.message)
+    }
+  }
+
+  const exportToYaml = () => {
+    const data = {
+      scene: { name: sceneName, location, lighting },
+      agents: agents.map(a => ({
+        id: a.id,
+        traits: a.traits,
+        hidden_agenda: a.hidden_agenda,
+        emotions: a.emotions,
+        llm_config: a.llm_config
+      }))
+    }
+    setYamlText(yaml.dump(data, { indent: 2 }))
+    setView('yaml')
+  }
 
   // Sync state with props whenever modal opens
   useEffect(() => {
@@ -95,180 +163,165 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
   return (
     <div className="overlay">
       <div className="modal">
-        <div className="mtitle">🎭 Simulation Blueprint</div>
-
-        {/* Scene Settings */}
-        <div className="ccard" style={{ borderLeftColor: 'var(--amber)', padding: '16px' }}>
-          <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '12px' }}>
-            🎬 World Blueprint
-          </div>
-          
-          <div className="field-group">
-            <label>Story Title</label>
-            <input
-              type="text" value={sceneName}
-              onChange={(e) => setSceneName(e.target.value)}
-              placeholder="e.g., The Neon Heist"
-            />
-          </div>
-
-          <div className="crow2">
-            <div className="field-group">
-              <label>Initial Location</label>
-              <input
-                type="text" value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Where does it start?"
-              />
-            </div>
-            <div className="field-group">
-              <label>Initial Lighting</label>
-              <input
-                type="text" value={lighting}
-                onChange={(e) => setLighting(e.target.value)}
-                placeholder="Visual atmosphere"
-              />
-            </div>
+        <div className="mhead-row">
+          <div className="mtitle">🎭 Simulation Blueprint</div>
+          <div className="mtabs">
+            <button className={`mtab ${view === 'form' ? 'active' : ''}`} onClick={() => setView('form')}>Form Editor</button>
+            <button className={`mtab ${view === 'yaml' ? 'active' : ''}`} onClick={exportToYaml}>YAML Source</button>
           </div>
         </div>
 
-        {/* Agent Roster */}
-        <div className="mtitle" style={{ marginTop: '20px', fontSize: '14px', opacity: 0.8 }}>👥 Actor Roster</div>
-        
-        {agents.map((ag, i) => (
-          <div key={i} className="ccard" style={{ padding: '16px' }}>
-            <div className="chead" style={{ marginBottom: '16px' }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: '50%',
-                background: agentColor(i),
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 800, color: '#fff',
-                fontFamily: 'JetBrains Mono, monospace', flexShrink: 0,
-              }}>
-                {ag.id.substring(0, 2).toUpperCase()}
-              </div>
-              <div className="field-group" style={{ flex: 1, margin: 0 }}>
-                <input
-                  type="text" value={ag.id}
-                  onChange={(e) => mutate(i, 'id', e.target.value)}
-                  placeholder="Character Name" style={{ fontWeight: 700, fontSize: '16px' }}
-                />
-              </div>
-              <button className="btn-test" onClick={() => onTest(ag.id, ag.llm_config)}>Test AI</button>
-              <Badge id={ag.id} results={testResults} />
-              {agents.length > 1 && (
-                <button
-                  onClick={() => removeAgent(i)}
-                  style={{ marginLeft: 8, fontSize: 18, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6 }}
-                  title="Remove actor"
-                >✕</button>
-              )}
+        {view === 'yaml' ? (
+          <div className="yaml-box">
+            <div className="yaml-hint">
+              Paste a YAML blueprint below or <button className="link-btn" onClick={() => setYamlText(SAMPLE_YAML)}>Load Sample</button>
             </div>
-
-            {testResults[ag.id]?.status === 'error' && (
-              <div style={{ fontSize: 12, color: '#fc8181', padding: '10px 14px', background: 'rgba(252,129,129,.08)', border: '1px solid rgba(252,129,129,.2)', borderRadius: 10, marginBottom: 16 }}>
-                <strong>Configuration Error:</strong> {testResults[ag.id].message}
-              </div>
-            )}
-
-            <div className="config-grid">
-              <div className="field-group">
-                <label>🎭 Personality & Traits</label>
-                <div className="hint">Influences vocabulary and speaking style</div>
-                <textarea
-                  value={ag.traits}
-                  onChange={(e) => mutate(i, 'traits', e.target.value)}
-                  placeholder="e.g. Sarcastic, technological genius, speaks in short sentences."
-                  rows={2}
-                />
-              </div>
-
-              <div className="field-group">
-                <label>🕵 Hidden Agenda</label>
-                <div className="hint">The secret goal the AI pursues through subtext</div>
-                <textarea
-                  value={ag.hidden_agenda}
-                  onChange={(e) => mutate(i, 'hidden_agenda', e.target.value)}
-                  placeholder="What does this character secretly want to achieve?"
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <div className="field-group" style={{ marginTop: '12px' }}>
-              <label>💓 Starting Emotional State</label>
-              <div className="hint">Set the initial psychological baseline for the scene</div>
-              <div className="emotion-grid">
-                <div className="e-slider">
-                  <div className="e-label">Tension <span>{Math.round(ag.emotions.tension * 100)}%</span></div>
-                  <input 
-                    type="range" min="0" max="1" step="0.05" 
-                    style={{ '--c': 'var(--red)' }}
-                    value={ag.emotions.tension} 
-                    onChange={(e) => mutateEmotion(i, 'tension', e.target.value)} 
-                  />
-                </div>
-                <div className="e-slider">
-                  <div className="e-label">Affection <span>{Math.round(ag.emotions.affection * 100)}%</span></div>
-                  <input 
-                    type="range" min="0" max="1" step="0.05" 
-                    style={{ '--c': 'var(--pink)' }}
-                    value={ag.emotions.affection} 
-                    onChange={(e) => mutateEmotion(i, 'affection', e.target.value)} 
-                  />
-                </div>
-                <div className="e-slider">
-                  <div className="e-label">Energy <span>{Math.round(ag.emotions.energy * 100)}%</span></div>
-                  <input 
-                    type="range" min="0" max="1" step="0.05" 
-                    style={{ '--c': 'var(--green)' }}
-                    value={ag.emotions.energy} 
-                    onChange={(e) => mutateEmotion(i, 'energy', e.target.value)} 
-                  />
-                </div>
-                <div className="e-slider">
-                  <div className="e-label">Suspicion <span>{Math.round(ag.emotions.suspicion * 100)}%</span></div>
-                  <input 
-                    type="range" min="0" max="1" step="0.05" 
-                    style={{ '--c': 'var(--cyan)' }}
-                    value={ag.emotions.suspicion} 
-                    onChange={(e) => mutateEmotion(i, 'suspicion', e.target.value)} 
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="field-group" style={{ marginTop: '12px' }}>
-              <label>⚙️ LLM Configuration</label>
-              <div className="crow2">
-                <select
-                  value={ag.llm_config.provider}
-                  onChange={(e) => mutate(i, 'provider', e.target.value)}
-                  style={{ flex: '0 0 160px' }}
-                >
-                  <option value="lm_studio">LM Studio (Local)</option>
-                  <option value="openrouter">OpenRouter (Cloud)</option>
-                  <option value="google">Google GenAI</option>
-                </select>
-                <input
-                  type="text" value={ag.llm_config.model_name}
-                  onChange={(e) => mutate(i, 'model_name', e.target.value)}
-                  placeholder="Model Identifier"
-                />
-              </div>
-              <input
-                type="password" value={ag.llm_config.api_key}
-                onChange={(e) => mutate(i, 'api_key', e.target.value)}
-                placeholder="Provider API Key (if required)"
-                style={{ marginTop: '8px' }}
-              />
-            </div>
+            <textarea 
+              className="yaml-area"
+              value={yamlText}
+              onChange={(e) => setYamlText(e.target.value)}
+              placeholder="Paste YAML here..."
+              spellCheck={false}
+            />
+            <button className="btn-sync" onClick={handleYamlSync}>Sync YAML to Form</button>
           </div>
-        ))}
+        ) : (
+          <div className="form-scroll-area">
+            {/* Scene Settings */}
+            <div className="ccard" style={{ borderLeftColor: 'var(--amber)', padding: '16px' }}>
+              <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '12px' }}>
+                🎬 World Blueprint
+              </div>
+              
+              <div className="field-group">
+                <label>Story Title</label>
+                <input
+                  type="text" value={sceneName}
+                  onChange={(e) => setSceneName(e.target.value)}
+                  placeholder="e.g., The Neon Heist"
+                />
+              </div>
 
-        <button className="btn-add" onClick={addAgent}>+ Add Character</button>
+              <div className="crow2">
+                <div className="field-group">
+                  <label>Initial Location</label>
+                  <input
+                    type="text" value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Where does it start?"
+                  />
+                </div>
+                <div className="field-group">
+                  <label>Initial Lighting</label>
+                  <input
+                    type="text" value={lighting}
+                    onChange={(e) => setLighting(e.target.value)}
+                    placeholder="Visual atmosphere"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Agent Roster */}
+            <div className="mtitle" style={{ marginTop: '20px', fontSize: '14px', opacity: 0.8 }}>👥 Actor Roster</div>
+            
+            {agents.map((ag, i) => (
+              <div key={i} className="ccard" style={{ padding: '16px' }}>
+                <div className="chead" style={{ marginBottom: '16px' }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: '50%',
+                    background: agentColor(i),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 800, color: '#fff',
+                    fontFamily: 'JetBrains Mono, monospace', flexShrink: 0,
+                  }}>
+                    {ag.id.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="field-group" style={{ flex: 1, margin: 0 }}>
+                    <input
+                      type="text" value={ag.id}
+                      onChange={(e) => mutate(i, 'id', e.target.value)}
+                      placeholder="Character Name" style={{ fontWeight: 700, fontSize: '16px' }}
+                    />
+                  </div>
+                  <button className="btn-test" onClick={() => onTest(ag.id, ag.llm_config)}>Test AI</button>
+                  <Badge id={ag.id} results={testResults} />
+                  {agents.length > 1 && (
+                    <button
+                      onClick={() => removeAgent(i)}
+                      style={{ marginLeft: 8, fontSize: 18, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6 }}
+                      title="Remove actor"
+                    >✕</button>
+                  )}
+                </div>
+
+                <div className="config-grid">
+                  <div className="field-group">
+                    <label>🎭 Personality & Traits</label>
+                    <textarea
+                      value={ag.traits}
+                      onChange={(e) => mutate(i, 'traits', e.target.value)}
+                      placeholder="Traits..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label>🕵 Hidden Agenda</label>
+                    <textarea
+                      value={ag.hidden_agenda}
+                      onChange={(e) => mutate(i, 'hidden_agenda', e.target.value)}
+                      placeholder="Agenda..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                <div className="emotion-grid">
+                  <div className="e-slider">
+                    <div className="e-label">Tension <span>{Math.round(ag.emotions.tension * 100)}%</span></div>
+                    <input type="range" min="0" max="1" step="0.05" value={ag.emotions.tension} onChange={(e) => mutateEmotion(i, 'tension', e.target.value)} />
+                  </div>
+                  <div className="e-slider">
+                    <div className="e-label">Affection <span>{Math.round(ag.emotions.affection * 100)}%</span></div>
+                    <input type="range" min="0" max="1" step="0.05" value={ag.emotions.affection} onChange={(e) => mutateEmotion(i, 'affection', e.target.value)} />
+                  </div>
+                  <div className="e-slider">
+                    <div className="e-label">Energy <span>{Math.round(ag.emotions.energy * 100)}%</span></div>
+                    <input type="range" min="0" max="1" step="0.05" value={ag.emotions.energy} onChange={(e) => mutateEmotion(i, 'energy', e.target.value)} />
+                  </div>
+                  <div className="e-slider">
+                    <div className="e-label">Suspicion <span>{Math.round(ag.emotions.suspicion * 100)}%</span></div>
+                    <input type="range" min="0" max="1" step="0.05" value={ag.emotions.suspicion} onChange={(e) => mutateEmotion(i, 'suspicion', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="config-grid" style={{ marginTop: '12px' }}>
+                  <select value={ag.llm_config.provider} onChange={(e) => mutate(i, 'provider', e.target.value)}>
+                    <option value="lm_studio">LM Studio</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="google">Google</option>
+                  </select>
+                  <input type="text" value={ag.llm_config.model_name} onChange={(e) => mutate(i, 'model_name', e.target.value)} placeholder="Model" />
+                </div>
+              </div>
+            ))}
+            <button className="btn-add" onClick={addAgent}>+ Add Character</button>
+          </div>
+        )}
 
         <div className="mfoot">
+          <button 
+            className="cb red" 
+            style={{ marginRight: 'auto' }}
+            onClick={() => {
+              if (window.confirm("⚠️ This will WIPE ALL character overrides and revert to system defaults. Are you sure?")) {
+                onSystemReset();
+                onClose();
+              }
+            }}
+          >
+            Factory Reset
+          </button>
           <button className="btn-cancel" onClick={onClose}>Cancel</button>
           <button className="btn-pri" onClick={() => onSave(agents, { sceneName, location, lighting })}>Save &amp; Apply</button>
         </div>

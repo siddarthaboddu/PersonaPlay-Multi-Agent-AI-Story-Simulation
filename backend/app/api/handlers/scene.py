@@ -96,3 +96,9 @@ async def handle_change_scene(
         "type": "world_update",
         "world": sim.state.scene.world_state.model_dump(),
     })
+
+    # ── Trigger Immediate AI Reaction ────────────────────────────────────────
+    from app.api.handlers.turn import handle_next_turn
+    from app.models.payloads import NextTurnPayload
+    
+    await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))

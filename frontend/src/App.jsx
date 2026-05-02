@@ -8,12 +8,8 @@ import { BackstagePanel } from './components/panels/BackstagePanel'
 import { ConfigModal } from './components/modals/ConfigModal'
 
 export default function App() {
-  const {
-    configureScene,
-    checkModel,
-    vitals,
-    world,
-    agents
+  const { 
+    configureScene, checkModel, vitals, world, agents, systemReset, startScene
   } = useSimulationContext()
   
   const [cfgOpen, setCfgOpen] = useState(false)
@@ -35,6 +31,7 @@ export default function App() {
           checkModel(id, cfg)
         }}
         testResults={testRes}
+        onSystemReset={systemReset}
       />
 
       <Topbar onOpenConfig={() => setCfgOpen(true)} />
