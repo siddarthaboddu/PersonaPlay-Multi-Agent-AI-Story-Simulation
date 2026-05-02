@@ -1,0 +1,41 @@
+scene:
+  name: "The Secret Road Trip"
+  location: "A Cluttered Minivan"
+  lighting: "Flashing Streetlights"
+  narrative_tension: 0.6
+  props:
+    - id: mysterious_duffel_bag
+      owner: Alex
+      visibility: visible
+    - id: half_eaten_pizza
+      owner: Jamie
+      visibility: visible
+
+agents:
+  Alex:
+    hidden_agenda: >
+      Wants to convince Jamie to skip college and drive to Mexico.
+      Secretly terrified of growing up.
+    emotions:
+      tension: 0.6
+      affection: 0.8
+      energy: 0.9
+      suspicion: 0.2
+    llm_config:
+      provider: lm_studio
+      base_url: "http://localhost:1234/v1"
+      model_name: local-model
+
+  Jamie:
+    hidden_agenda: >
+      Just realized the mysterious duffel bag in the back belongs to a dangerous cartel.
+      Wants to get home immediately without panicking Alex.
+    emotions:
+      tension: 0.9
+      affection: 0.7
+      energy: 0.5
+      suspicion: 0.9
+    llm_config:
+      provider: lm_studio
+      base_url: "http://localhost:1234/v1"
+      model_name: local-model
