@@ -3,7 +3,10 @@ import { useSimulationContext } from '../../context/SimulationContext'
 import { agentColor } from '../../utils/colors'
 
 export function ManualDialogueBar() {
-  const { agents, sendManualDialogue, isProcessing } = useSimulationContext()
+  const { 
+    agents, sendManualDialogue, isProcessing, 
+    auto, setAuto, pause 
+  } = useSimulationContext()
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [text, setText] = useState('')
   const [triggerResponse, setTriggerResponse] = useState(true)
@@ -16,6 +19,13 @@ export function ManualDialogueBar() {
       }
     }
   }, [agents, selectedAgentId])
+
+  const handleFocus = () => {
+    // Automatically pause auto mode when user focuses the dialogue box to type
+    if (auto) {
+      pause()
+    }
+  }
 
   const handleSubmit = (e) => {
     e?.preventDefault()
@@ -34,7 +44,7 @@ export function ManualDialogueBar() {
   return (
     <div style={{
       borderTop: '1px solid var(--border)',
-      background: 'rgba(15, 23, 42, 0.75)',
+      background: 'rgba(15, 23, 42, 0.85)',
       backdropFilter: 'blur(10px)',
       padding: '10px 14px',
       display: 'flex',
@@ -42,8 +52,8 @@ export function ManualDialogueBar() {
       gap: '8px',
       flexShrink: 0,
     }}>
-      {/* Top bar: Character selector pills & AI Response toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+      {/* Top bar: Character selector pills & Pause/Auto + AI Response toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Speak as:
@@ -85,24 +95,63 @@ export function ManualDialogueBar() {
           })}
         </div>
 
-        <label style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '5px',
-          fontSize: '10px',
-          color: 'var(--t3)',
-          cursor: 'pointer',
-          userSelect: 'none',
-          whiteSpace: 'nowrap',
-        }} title="When checked, the other character will immediately generate a spoken reply">
-          <input
-            type="checkbox"
-            checked={triggerResponse}
-            onChange={(e) => setTriggerResponse(e.target.checked)}
-            style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--purple)' }}
-          />
-          <span>AI Reply</span>
-        </label>
+        {/* Right side controls: Pause/Resume + AI Reply */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {auto ? (
+            <button
+              type="button"
+              onClick={pause}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontSize: '10px',
+                fontWeight: 800,
+                border: '1px solid rgba(245, 166, 35, 0.4)',
+                background: 'rgba(245, 166, 35, 0.2)',
+                color: 'var(--amber)',
+                cursor: 'pointer',
+                animation: 'pulseGlow 2s infinite ease-in-out',
+              }}
+              title="Pause auto mode to take your time writing dialogue"
+            >
+              <span>⏸ Pause Auto</span>
+            </button>
+          ) : (
+            <span style={{
+              fontSize: '10px',
+              color: '#38bdf8',
+              background: 'rgba(56,189,248,0.1)',
+              border: '1px solid rgba(56,189,248,0.25)',
+              padding: '2px 7px',
+              borderRadius: '4px',
+              fontWeight: 700,
+            }}>
+              ⏸ Paused
+            </span>
+          )}
+
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            fontSize: '10px',
+            color: 'var(--t3)',
+            cursor: 'pointer',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }} title="When checked, the other character will immediately generate a spoken reply and remain paused">
+            <input
+              type="checkbox"
+              checked={triggerResponse}
+              onChange={(e) => setTriggerResponse(e.target.checked)}
+              style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--purple)' }}
+            />
+            <span>AI Reply</span>
+          </label>
+        </div>
       </div>
 
       {/* Input row */}
@@ -111,9 +160,16 @@ export function ManualDialogueBar() {
           <input
             type="text"
             value={text}
+            onFocus={handleFocus}
             onChange={(e) => setText(e.target.value)}
             disabled={isProcessing}
-            placeholder={isProcessing ? "Characters conversing..." : `Type dialogue for ${selectedAgentId || 'character'}...`}
+            placeholder={
+              isProcessing 
+                ? "Characters conversing..." 
+                : auto
+                ? `Auto running (click to pause & speak as ${selectedAgentId || 'character'})...`
+                : `Type dialogue for ${selectedAgentId || 'character'}... (Enter to speak)`
+            }
             style={{
               paddingLeft: '12px',
               paddingRight: '12px',
@@ -127,6 +183,27 @@ export function ManualDialogueBar() {
             }}
           />
         </div>
+
+        {auto && (
+          <button
+            type="button"
+            onClick={pause}
+            style={{
+              padding: '8px 12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: '1px solid rgba(245, 166, 35, 0.4)',
+              background: 'rgba(245, 166, 35, 0.15)',
+              color: 'var(--amber)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+            title="Pause auto play so you can manually enter character lines"
+          >
+            ⏸ Pause
+          </button>
+        )}
 
         <button
           type="submit"

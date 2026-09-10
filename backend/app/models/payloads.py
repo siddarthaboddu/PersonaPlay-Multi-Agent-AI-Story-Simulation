@@ -24,6 +24,10 @@ class StopScenePayload(BaseModel):
     type: Literal["stop_scene"]
 
 
+class PauseScenePayload(BaseModel):
+    type: Literal["pause_scene"]
+
+
 class NextTurnPayload(BaseModel):
     type: Literal["next_turn"]
 
@@ -126,6 +130,7 @@ class InboundPayload(RootModel):
         Union[
             StartScenePayload,
             StopScenePayload,
+            PauseScenePayload,
             NextTurnPayload,
             RetakeTurnPayload,
             TogglePhasesPayload,

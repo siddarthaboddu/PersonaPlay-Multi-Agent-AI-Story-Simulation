@@ -3,7 +3,7 @@ import { useSimulationContext } from '../../context/SimulationContext'
 
 export function DirectorPanel() {
   const { 
-    world, vitals, agents, injectChaos, whisperDirective, sendManualDialogue,
+    world, vitals, agents, injectChaos, whisperDirective, sendManualDialogue, pause,
     auto, autoDelay, setAutoPacing, autoCountdown, isProcessing,
     phasesEnabled, togglePhases
   } = useSimulationContext()
@@ -264,30 +264,52 @@ export function DirectorPanel() {
             ))}
           </div>
 
-          <button 
-            type="submit" 
-            style={{
-              marginTop: 4,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '8px 12px', borderRadius: 8, border: 'none',
-              background: target === 'world'
-                ? 'linear-gradient(135deg, var(--amber), #d97706)'
+          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+            {auto && (
+              <button
+                type="button"
+                onClick={pause}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(245, 166, 35, 0.4)',
+                  background: 'rgba(245, 166, 35, 0.2)',
+                  color: 'var(--amber)',
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Pause simulation"
+              >
+                ⏸ Pause
+              </button>
+            )}
+            <button 
+              type="submit" 
+              style={{
+                flex: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 8, border: 'none',
+                background: target === 'world'
+                  ? 'linear-gradient(135deg, var(--amber), #d97706)'
+                  : target.startsWith('speak_')
+                  ? 'linear-gradient(135deg, #38bdf8, #6366f1)'
+                  : 'linear-gradient(135deg, var(--purple), #7c3aed)',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              }}
+            >
+              {target === 'world' 
+                ? '⚡ Inject Plot Event' 
                 : target.startsWith('speak_')
-                ? 'linear-gradient(135deg, #38bdf8, #6366f1)'
-                : 'linear-gradient(135deg, var(--purple), #7c3aed)',
-              color: '#000',
-              fontWeight: 800,
-              fontSize: 12,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}
-          >
-            {target === 'world' 
-              ? '⚡ Inject Plot Event' 
-              : target.startsWith('speak_')
-              ? `🗣️ Speak Line as ${target.replace('speak_', '')}`
-              : `🤫 Whisper to ${target.replace('whisper_', '')}`}
-          </button>
+                ? `🗣️ Speak Line as ${target.replace('speak_', '')}`
+                : `🤫 Whisper to ${target.replace('whisper_', '')}`}
+            </button>
+          </div>
         </form>
       </div>
     </div>

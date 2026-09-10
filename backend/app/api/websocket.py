@@ -34,6 +34,7 @@ from app.api.handlers.director import (
 from app.api.handlers.scene import (
     handle_change_scene,
     handle_get_state,
+    handle_pause_scene,
     handle_start_scene,
     handle_stop_scene,
     handle_toggle_phases,
@@ -67,6 +68,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_start_scene(manager, sim, payload)
             elif t == "stop_scene":
                 await handle_stop_scene(manager, sim, payload)
+            elif t == "pause_scene":
+                await handle_pause_scene(manager, sim, payload)
             elif t == "get_state":
                 await handle_get_state(manager, sim, payload, websocket)
             elif t == "change_scene":

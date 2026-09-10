@@ -228,8 +228,9 @@ export function useSimulation(send, subscribe) {
     send({ type: 'toggle_phases', enabled })
   }, [send])
   const sendManualDialogue = useCallback((agent_id, content, trigger_response = true) => {
+    setAuto(false)
+    clearAutoTimers()
     if (trigger_response) {
-      clearAutoTimers()
       isProcessingRef.current = true
       setIsProcessing(true)
     }
@@ -239,12 +240,14 @@ export function useSimulation(send, subscribe) {
       content,
       trigger_response,
     })
-  }, [send, clearAutoTimers])
+  }, [send, clearAutoTimers, setAuto])
   const pause         = useCallback(() => {
     setAuto(false)
     clearAutoTimers()
-    setMessages((p) => [...p, { type: 'action', content: '[SYSTEM]: ⏸ Paused.' }])
-  }, [setAuto, clearAutoTimers])
+    isProcessingRef.current = false
+    setIsProcessing(false)
+    send({ type: 'pause_scene' })
+  }, [setAuto, clearAutoTimers, send])
 
   // ── Derived beat state ─────────────────────────────────────────────────────
   const turnCount    = vitals.turn_count ?? 0

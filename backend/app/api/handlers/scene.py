@@ -5,6 +5,7 @@ from app.api.connection import ConnectionManager, SimulationState
 from app.models.payloads import (
     ChangeScenePayload,
     GetStatePayload,
+    PauseScenePayload,
     StartScenePayload,
     StopScenePayload,
     TogglePhasesPayload,
@@ -71,6 +72,30 @@ async def handle_stop_scene(
     await manager.broadcast({
         "type": "action",
         "content": "[SYSTEM]: 🛑 Simulation forcibly stopped.",
+    })
+
+
+async def handle_pause_scene(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: PauseScenePayload,
+) -> None:
+    async with sim.lock:
+        sim.cancel_task()
+    await manager.broadcast({
+        "type": "action",
+        "content": "[SYSTEM]: ⏸ Simulation paused. Enter character dialogue or resume when ready.",
+    })
+    # Broadcast vitals to release any processing state
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
+        },
     })
 
 

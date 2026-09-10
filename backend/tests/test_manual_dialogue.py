@@ -120,3 +120,38 @@ async def test_handle_manual_dialogue_triggers_response():
          patch("app.api.handlers.turn.handle_next_turn", new_callable=AsyncMock) as mock_next_turn:
         await handle_manual_dialogue(mock_manager, mock_sim, payload)
         mock_next_turn.assert_awaited_once()
+
+
+def test_pause_scene_payload_validation():
+    """PauseScenePayload must validate properly via InboundPayload union."""
+    from app.models.payloads import PauseScenePayload
+    raw = {"type": "pause_scene"}
+    payload = InboundPayload.model_validate(raw).root
+    assert isinstance(payload, PauseScenePayload)
+    assert payload.type == "pause_scene"
+
+
+@pytest.mark.asyncio
+async def test_handle_pause_scene_cancels_task_and_broadcasts():
+    """handle_pause_scene must cancel in-flight task and broadcast paused notification with vitals."""
+    from app.api.handlers.scene import handle_pause_scene
+    from app.models.payloads import PauseScenePayload
+
+    mock_manager = AsyncMock()
+    mock_sim = MagicMock()
+    mock_sim.lock = AsyncMock()
+    mock_sim.state.scene = SceneState(
+        active_scene="Living Room",
+        world_state=WorldState(location="Living Room", lighting="Warm", props=[]),
+        narrative_tension=0.5,
+        turn_count=3,
+        phases_enabled=True,
+    )
+
+    payload = PauseScenePayload(type="pause_scene")
+    await handle_pause_scene(mock_manager, mock_sim, payload)
+
+    mock_sim.cancel_task.assert_called_once()
+    broadcast_types = [c.args[0]["type"] for c in mock_manager.broadcast.call_args_list]
+    assert "action" in broadcast_types
+    assert "vitals_update" in broadcast_types

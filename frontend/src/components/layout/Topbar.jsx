@@ -7,6 +7,7 @@ export function Topbar({ onOpenConfig }) {
     retakeTurn,
     auto, 
     setAuto, 
+    pause,
     isProcessing,
     autoCountdown,
     turnCount, 
@@ -78,6 +79,25 @@ export function Topbar({ onOpenConfig }) {
             </span>
           )}
         </button>
+
+        {auto && (
+          <button
+            className="cb"
+            onClick={pause}
+            title="Pause simulation to manually speak or direct"
+            style={{
+              background: 'rgba(245, 166, 35, 0.18)',
+              borderColor: 'rgba(245, 166, 35, 0.4)',
+              color: 'var(--amber)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>⏸ Pause</span>
+          </button>
+        )}
       </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
