@@ -20,8 +20,31 @@ from langchain_core.output_parsers import JsonOutputParser
 from app.agents.beats import get_beat
 from app.agents.llm import get_model, compress_history
 from app.config import settings
-from app.models.state import OrchestratorState
+from app.models.state import AgentState, OrchestratorState, RelationshipVector
 from app.services.memory import add_memory, retrieve_memories
+
+
+def _format_relationships(speaker: str, agent: AgentState) -> str:
+    """Format the speaker's stance toward other characters into evocative theatrical subtext."""
+    if not agent.relationships:
+        return ""
+
+    lines = ["INTERPERSONAL RELATIONSHIPS & SUBTEXT:"]
+    for target, rel in agent.relationships.items():
+        if target == speaker:
+            continue
+        trust_str = "High Trust" if rel.trust >= 0.7 else ("Skeptical / Guarded" if rel.trust >= 0.4 else "Zero Trust / Paranoia")
+        affinity_str = "Ally / Camaraderie" if rel.affinity >= 0.7 else ("Neutral / Transactional" if rel.affinity >= 0.4 else "Bitter Rival / Contempt")
+        fear_str = "Intimidated / Terrified" if rel.fear >= 0.6 else ("Alert / Wary" if rel.fear >= 0.3 else "Fearless")
+        dom_str = "Commanding / Dominant" if rel.dominance >= 0.6 else ("Equal / Peer" if rel.dominance >= 0.4 else "Submissive / Deferential")
+
+        lines.append(
+            f"- Toward {target}: Trust {int(rel.trust*100)}% ({trust_str}), "
+            f"Affinity {int(rel.affinity*100)}% ({affinity_str}), "
+            f"Fear {int(rel.fear*100)}% ({fear_str}), "
+            f"Dominance {int(rel.dominance*100)}% ({dom_str})"
+        )
+    return "\n".join(lines) + "\n" if len(lines) > 1 else ""
 
 
 class ActorOutput(BaseModel):
@@ -34,11 +57,16 @@ class ActorOutput(BaseModel):
     )
     take_prop: Optional[str] = Field(None, description="A prop ID you want to take")
     move_to: Optional[str] = Field(None, description="A new location to move to")
+    addressed_to: Optional[str] = Field(None, description="The name of the other character you are speaking to or reacting to")
+    relationship_drift: Optional[dict[str, float]] = Field(
+        None,
+        description="Shift in your feelings toward addressed_to: e.g. {'trust': -0.05, 'affinity': 0.05, 'fear': 0.0, 'dominance': 0.0}"
+    )
 
 
 async def _generate_monologue(
     agent_id: str,
-    agent,
+    agent: AgentState,
     context_summary: str,
     world_context: str,
     beat: str,
@@ -48,13 +76,14 @@ async def _generate_monologue(
         model = get_model(agent.llm_config, creative=True)
         traits = f"Traits: {agent.traits}\n" if agent.traits else ""
         agenda = f"SECRET MOTIVE: {agent.hidden_agenda}\n" if agent.hidden_agenda else ""
+        rel_context = _format_relationships(agent_id, agent)
         
         prompt = (
             f"You are {agent_id}. {world_context}\n"
-            f"{traits}{agenda}"
+            f"{traits}{agenda}{rel_context}"
             f"Story context: {context_summary}\n"
             f"Dramatic beat: {beat}\n"
-            f"What is ONE new specific thought you have RIGHT NOW that reflects your secret motive? "
+            f"What is ONE new specific thought you have RIGHT NOW that reflects your secret motive and interpersonal stance? "
             f"One short sentence only. Do not reveal the secret directly."
         )
         res = await model.ainvoke([HumanMessage(content=prompt)])
@@ -118,10 +147,12 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     parser = JsonOutputParser(pydantic_object=ActorOutput)
     format_instructions = parser.get_format_instructions()
 
+    rel_context = _format_relationships(speaker, agent)
+
     prompt = f"""You are {speaker}, an actor in a live theatrical simulation.
 {traits_str}
 {agenda_str}
-{world_context}{mem_context}
+{rel_context}{world_context}{mem_context}
 
 STORY CONTEXT (what has happened so far):
 {context}
@@ -184,7 +215,7 @@ Output ONLY valid JSON. No preamble."""
             state.scene.world_state.location = parsed["move_to"]
             print(f"[Actor] ECS: Scene moved to {parsed['move_to']}")
 
-        # ── 7. Emotion drift ──────────────────────────────────────────────────
+        # ── 7. Emotion & Relationship drift ───────────────────────────────────
         urgency = min(1.0, turn_num / 20.0)
         agent.emotions.energy = max(0.0, agent.emotions.energy - random.uniform(0.01, 0.04))
         agent.emotions.tension = max(
@@ -193,6 +224,19 @@ Output ONLY valid JSON. No preamble."""
         agent.emotions.suspicion = max(
             0.0, min(1.0, agent.emotions.suspicion + random.uniform(-0.02, 0.08))
         )
+
+        target_name = parsed.get("addressed_to")
+        drift = parsed.get("relationship_drift")
+        if target_name and isinstance(drift, dict):
+            target_clean = target_name.strip()
+            if target_clean in agent.relationships:
+                rel = agent.relationships[target_clean]
+                for metric in ["trust", "affinity", "fear", "dominance"]:
+                    if metric in drift and isinstance(drift[metric], (int, float)):
+                        curr_val = getattr(rel, metric)
+                        new_val = max(0.0, min(1.0, curr_val + float(drift[metric])))
+                        setattr(rel, metric, round(new_val, 3))
+                print(f"[Actor] Relationship drift for {speaker} toward {target_clean}: {agent.relationships[target_clean]}")
 
         # ── 8. Store episodic observation ─────────────────────────────────────
         await add_memory(speaker, dialogue, memory_type="observation", turn=turn_num)

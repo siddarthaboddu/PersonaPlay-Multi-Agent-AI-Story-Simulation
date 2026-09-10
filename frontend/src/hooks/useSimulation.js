@@ -108,6 +108,13 @@ export function useSimulation(send, subscribe, onDialogue) {
   const generateImage = useCallback(() => send({ type: 'director_command', command: 'generate image' }), [send])
   const forceTension  = useCallback((value) => send({ type: 'force_scene_tension', value }), [send])
   const forceEmotion  = useCallback((agent_id, emotion, value) => send({ type: 'force_emotion', agent_id, emotion, value }), [send])
+  const forceRelationship = useCallback((source_agent, target_agent, metric, value) => send({
+    type: 'force_relationship',
+    source_agent,
+    target_agent,
+    metric,
+    value,
+  }), [send])
   const forceGiveProp = useCallback((prop_id, owner) => send({ type: 'force_give_prop', prop_id, owner }), [send])
   const configureScene = useCallback((agents, metadata = {}) => send({
     type: 'configure_scene',
@@ -141,7 +148,7 @@ export function useSimulation(send, subscribe, onDialogue) {
     // Actions
     startScene, stopScene, nextTurn, rewind, exportScript,
     changeScene, injectChaos, generateImage,
-    forceTension, forceEmotion, forceGiveProp,
+    forceTension, forceEmotion, forceRelationship, forceGiveProp,
     configureScene, checkModel, pause, systemReset,
   }
 }

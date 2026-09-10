@@ -76,6 +76,14 @@ class ForceEmotionPayload(BaseModel):
     value: float
 
 
+class ForceRelationshipPayload(BaseModel):
+    type: Literal["force_relationship"]
+    source_agent: str
+    target_agent: str
+    metric: Literal["trust", "affinity", "fear", "dominance"]
+    value: float
+
+
 class ForceSceneTensionPayload(BaseModel):
     type: Literal["force_scene_tension"]
     value: float
@@ -104,6 +112,7 @@ class InboundPayload(RootModel):
             CheckModelPayload,
             DirectorCommandPayload,
             ForceEmotionPayload,
+            ForceRelationshipPayload,
             ForceSceneTensionPayload,
             ExportScriptPayload,
             SystemResetPayload,

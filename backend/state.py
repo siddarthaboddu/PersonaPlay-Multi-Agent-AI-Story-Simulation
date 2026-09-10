@@ -8,6 +8,7 @@ from app.models.state import (  # noqa: F401
     ModelConfig,
     OrchestratorState,
     Prop,
+    RelationshipVector,
     SceneState,
     WorldState,
 )

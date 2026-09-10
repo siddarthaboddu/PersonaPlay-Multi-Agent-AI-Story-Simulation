@@ -7,9 +7,10 @@ from app.models.payloads import (
     ConfigureScenePayload,
     ForceEmotionPayload,
     ForceGivePropPayload,
+    ForceRelationshipPayload,
     ForceSceneTensionPayload,
 )
-from app.models.state import AgentState, EmotionVector, ModelConfig, Prop
+from app.models.state import AgentState, EmotionVector, ModelConfig, Prop, RelationshipVector
 
 
 async def handle_configure_scene(
@@ -30,6 +31,12 @@ async def handle_configure_scene(
             new_agents: dict = {}
             for char in payload.agents:
                 char_id = char.get("id")
+                rels = {}
+                for tgt, r_data in char.get("relationships", {}).items():
+                    if isinstance(r_data, dict):
+                        rels[tgt] = RelationshipVector(**r_data)
+                    elif isinstance(r_data, RelationshipVector):
+                        rels[tgt] = r_data
                 new_agents[char_id] = AgentState(
                     id=char_id,
                     hidden_agenda=char.get("hidden_agenda"),
@@ -40,6 +47,7 @@ async def handle_configure_scene(
                             "energy": 0.5, "suspicion": 0.5,
                         })
                     ),
+                    relationships=rels,
                     llm_config=ModelConfig(**char.get("llm_config", {})),
                 )
             sim.state.agents = new_agents
@@ -156,6 +164,28 @@ async def handle_force_emotion(
         "type": "agents_update",
         "agents": [v.model_dump() for v in sim.state.agents.values()],
     })
+
+
+async def handle_force_relationship(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: ForceRelationshipPayload,
+) -> None:
+    async with sim.lock:
+        if payload.source_agent in sim.state.agents:
+            agent = sim.state.agents[payload.source_agent]
+            if payload.target_agent not in agent.relationships:
+                agent.relationships[payload.target_agent] = RelationshipVector()
+            rel = agent.relationships[payload.target_agent]
+            clamped = max(0.0, min(1.0, float(payload.value)))
+            setattr(rel, payload.metric, clamped)
+            sim.update_last_history()
+
+    await manager.broadcast({
+        "type": "agents_update",
+        "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
+
 
 async def handle_system_reset(
     manager: ConnectionManager,

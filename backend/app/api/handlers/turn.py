@@ -57,10 +57,11 @@ async def handle_next_turn(
                 sim.state.next_speaker = new_state.next_speaker
                 sim.state.scene.turn_count = new_state.scene.turn_count
 
-                # 3. Merge Agent updates (emotions, etc.)
+                # 3. Merge Agent updates (emotions, relationships, etc.)
                 for aid, ag in new_state.agents.items():
                     if aid in sim.state.agents:
                         sim.state.agents[aid].emotions = ag.emotions
+                        sim.state.agents[aid].relationships = ag.relationships
 
                 # 4. Selective World Update: Prop transfer and Location change
                 for p_new in new_state.scene.world_state.props:

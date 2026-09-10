@@ -3,7 +3,7 @@ import { useSimulationContext } from '../../context/SimulationContext'
 import { agentColor } from '../../utils/colors'
 
 export function BackstagePanel() {
-  const { agents, messages, monologues, insights = [], forceEmotion } = useSimulationContext()
+  const { agents, messages, monologues, insights = [], forceEmotion, forceRelationship } = useSimulationContext()
   const [tab, setTab] = useState('vitals')
   const monoRef = useRef(null)
   const insightsRef = useRef(null)
@@ -20,7 +20,7 @@ export function BackstagePanel() {
 
   // Automatically switch to thoughts when a new one arrives
   useEffect(() => {
-    if (monologues.length > 0 && tab !== 'insights') {
+    if (monologues.length > 0 && tab !== 'insights' && tab !== 'relations') {
       setTab('thoughts')
     }
   }, [monologues.length])
@@ -57,6 +57,12 @@ export function BackstagePanel() {
               {insights.length}
             </span>
           )}
+        </button>
+        <button 
+          className={`tab ${tab === 'relations' ? 'active' : ''}`} 
+          onClick={() => setTab('relations')}
+        >
+          💞 Relations
         </button>
       </div>
 
@@ -139,6 +145,64 @@ export function BackstagePanel() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {tab === 'relations' && (
+        <div className="pb">
+          {agents.length < 2 && (
+            <div className="mempty">At least two characters are required<br/>to model interpersonal relationships.</div>
+          )}
+          {agents.map((ag, i) => {
+            const srcCol = agentColor(i)
+            const otherAgents = agents.filter(other => other.id !== ag.id)
+            if (otherAgents.length === 0) return null
+
+            return (
+              <div key={ag.id} style={{ marginBottom: 14 }}>
+                {otherAgents.map((target, j) => {
+                  const tgtIdx = agents.findIndex(a => a.id === target.id)
+                  const tgtCol = agentColor(tgtIdx >= 0 ? tgtIdx : j)
+                  const rel = ag.relationships?.[target.id] ?? { trust: 0.5, affinity: 0.5, fear: 0.0, dominance: 0.5 }
+
+                  return (
+                    <div key={target.id} className="vcard" style={{ borderLeft: `3px solid ${srcCol}`, marginBottom: 8 }}>
+                      <div className="vname" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, marginBottom: 8 }}>
+                        <div className="vdot" style={{ background: srcCol }}>{ag.id.substring(0, 2).toUpperCase()}</div>
+                        <span style={{ fontWeight: 700, color: srcCol }}>{ag.id}</span>
+                        <span style={{ color: 'var(--t4)', fontSize: 11 }}>➔</span>
+                        <div className="vdot" style={{ background: tgtCol }}>{target.id.substring(0, 2).toUpperCase()}</div>
+                        <span style={{ fontWeight: 600, color: tgtCol }}>{target.id}</span>
+                      </div>
+
+                      {[
+                        ['trust', '🤝', 'Trust', 'var(--cyan)'],
+                        ['affinity', '💖', 'Affinity', 'var(--pink)'],
+                        ['fear', '😨', 'Fear', 'var(--orange)'],
+                        ['dominance', '👑', 'Dominance', 'var(--purple)'],
+                      ].map(([metric, icon, label, color]) => {
+                        const val = rel[metric] ?? 0.5
+                        return (
+                          <div key={metric} className="vrow" style={{ marginTop: 4 }}>
+                            <span className="vlbl" style={{ color, minWidth: 84, fontSize: 11 }}>{icon} {label}</span>
+                            <input
+                              type="range" min="0" max="1" step="0.05"
+                              value={val}
+                              onChange={(e) => forceRelationship(ag.id, target.id, metric, parseFloat(e.target.value))}
+                              style={{ flex: 1, accentColor: color, '--c': color }}
+                            />
+                            <span className="vpct" style={{ color, minWidth: 32, textAlign: 'right', fontSize: 11 }}>
+                              {Math.round(val * 100)}%
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

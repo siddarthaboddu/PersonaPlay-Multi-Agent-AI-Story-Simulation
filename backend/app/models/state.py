@@ -2,7 +2,7 @@
 Pydantic state models for PersonaPlay Pro.
 Migrated from the top-level state.py — import from here going forward.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 
 
@@ -26,6 +26,13 @@ class EmotionVector(BaseModel):
     suspicion: float  # 0.0–1.0
 
 
+class RelationshipVector(BaseModel):
+    trust: float = 0.5       # 0.0 (betrayal / paranoid) to 1.0 (unwavering faith)
+    affinity: float = 0.5    # 0.0 (hatred / bitter rivalry) to 1.0 (devoted camaraderie)
+    fear: float = 0.0        # 0.0 (fearless / indifferent) to 1.0 (terrified / intimidated)
+    dominance: float = 0.5   # 0.0 (deferential / submissive) to 1.0 (commanding / assertive)
+
+
 class SceneState(BaseModel):
     active_scene: str
     world_state: WorldState
@@ -45,6 +52,7 @@ class AgentState(BaseModel):
     emotions: EmotionVector
     hidden_agenda: Optional[str] = None
     traits: Optional[str] = None  # New field for character personality/description
+    relationships: dict[str, RelationshipVector] = Field(default_factory=dict)
     llm_config: ModelConfig = ModelConfig()
 
 

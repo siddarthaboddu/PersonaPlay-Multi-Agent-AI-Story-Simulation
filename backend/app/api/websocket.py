@@ -20,6 +20,7 @@ from app.api.handlers.config import (
     handle_configure_scene,
     handle_force_emotion,
     handle_force_give_prop,
+    handle_force_relationship,
     handle_force_scene_tension,
     handle_system_reset,
 )
@@ -83,6 +84,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_force_give_prop(manager, sim, payload)
             elif t == "force_emotion":
                 await handle_force_emotion(manager, sim, payload)
+            elif t == "force_relationship":
+                await handle_force_relationship(manager, sim, payload)
             elif t == "force_scene_tension":
                 await handle_force_scene_tension(manager, sim, payload)
             elif t == "system_reset":
