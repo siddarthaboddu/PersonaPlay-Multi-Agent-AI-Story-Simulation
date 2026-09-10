@@ -77,10 +77,15 @@ async def _generate_monologue(
         traits = f"Traits: {agent.traits}\n" if agent.traits else ""
         agenda = f"SECRET MOTIVE: {agent.hidden_agenda}\n" if agent.hidden_agenda else ""
         rel_context = _format_relationships(agent_id, agent)
+        whisper_ctx = (
+            f"SECRET IN-EAR DIRECTIVE FROM THE DIRECTOR (CONFIDENTIAL — FOR YOUR EARS ONLY):\n"
+            f"\"{agent.pending_whisper}\"\n"
+            f"You MUST react to this instruction internally in your thought while keeping it completely concealed from others!\n"
+        ) if agent.pending_whisper else ""
         
         prompt = (
             f"You are {agent_id}. {world_context}\n"
-            f"{traits}{agenda}{rel_context}"
+            f"{traits}{agenda}{whisper_ctx}{rel_context}"
             f"Story context: {context_summary}\n"
             f"Dramatic beat: {beat}\n"
             f"What is ONE new specific thought you have RIGHT NOW that reflects your secret motive and interpersonal stance? "
@@ -148,11 +153,16 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     format_instructions = parser.get_format_instructions()
 
     rel_context = _format_relationships(speaker, agent)
+    whisper_str = (
+        f"CONFIDENTIAL DIRECTOR DIRECTIVE (FOR YOUR EARS ONLY):\n"
+        f"\"{agent.pending_whisper}\"\n"
+        f"Act upon this secret guidance through your words or physical actions, but stay in character and NEVER quote the director!\n"
+    ) if agent.pending_whisper else ""
 
     prompt = f"""You are {speaker}, an actor in a live theatrical simulation.
 {traits_str}
 {agenda_str}
-{rel_context}{world_context}{mem_context}
+{whisper_str}{rel_context}{world_context}{mem_context}
 
 STORY CONTEXT (what has happened so far):
 {context}
@@ -243,6 +253,11 @@ Output ONLY valid JSON. No preamble."""
 
     except Exception as e:
         print(f"[Actor] Model error during dialogue/ECS: {e}")
+
+    # ── 9. Consume pending whisper ───────────────────────────────────────────
+    if agent.pending_whisper:
+        print(f"[Actor] '{speaker}' consumed secret whisper: \"{agent.pending_whisper[:40]}…\"")
+        agent.pending_whisper = None
 
     # Append monologue + dialogue to history (window limit enforced in turn.py after merge)
     new_history = list(state.chat_history)

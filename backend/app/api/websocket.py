@@ -26,6 +26,7 @@ from app.api.handlers.config import (
 )
 from app.api.handlers.director import (
     handle_director_command,
+    handle_director_whisper,
     handle_export_script,
     handle_rewind_turns,
 )
@@ -74,6 +75,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_rewind_turns(manager, sim, payload)
             elif t == "director_command":
                 await handle_director_command(manager, sim, payload)
+            elif t == "director_whisper":
+                await handle_director_whisper(manager, sim, payload)
             elif t == "export_script":
                 await handle_export_script(manager, sim, payload, websocket)
             elif t == "configure_scene":

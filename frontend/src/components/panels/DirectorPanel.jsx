@@ -10,6 +10,10 @@ export function DirectorPanel() {
 
   const [loc, setLoc] = useState('')
   const [cmd, setCmd] = useState('')
+  const [whisperTarget, setWhisperTarget] = useState('')
+  const [whisperText, setWhisperText] = useState('')
+
+  const activeTarget = whisperTarget || (agents[0]?.id ?? '')
 
   return (
     <div className="panel">
@@ -97,6 +101,76 @@ export function DirectorPanel() {
             value={cmd} onChange={(e) => setCmd(e.target.value)}
           />
           <button type="submit" className="btn-chaos">🔥 Inject into Scene</button>
+        </form>
+
+        <div className="rule"/>
+        <div className="sec">🤫 Secret Whisper (In-Ear Coaching)</div>
+        <form 
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }} 
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (whisperText.trim() && activeTarget) {
+              whisperDirective(activeTarget, whisperText.trim());
+              setWhisperText('');
+            }
+          }}
+        >
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--t3)', whiteSpace: 'nowrap' }}>To Actor:</span>
+            <select
+              className="psel"
+              value={activeTarget}
+              onChange={(e) => setWhisperTarget(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              {agents.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
+            </select>
+          </div>
+
+          <input 
+            type="text" 
+            placeholder={`Secret directive for ${activeTarget || 'actor'}…`}
+            value={whisperText} 
+            onChange={(e) => setWhisperText(e.target.value)}
+          />
+
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {[
+              "Play along, then double-cross",
+              "Ask about their hidden past",
+              "Demand proof immediately",
+              "Conceal your fear with humor"
+            ].map(preset => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setWhisperText(preset)}
+                style={{
+                  fontSize: 10,
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border)',
+                  background: 'var(--s2)',
+                  color: 'var(--t3)',
+                  cursor: 'pointer'
+                }}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+
+          <button 
+            type="submit" 
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 8, border: 'none',
+              background: 'linear-gradient(135deg, var(--purple), #7c3aed)',
+              color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer'
+            }}
+          >
+            🤫 Whisper to {activeTarget || 'Actor'}
+          </button>
         </form>
       </div>
     </div>

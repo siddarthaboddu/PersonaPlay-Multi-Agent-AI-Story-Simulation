@@ -105,6 +105,11 @@ export function useSimulation(send, subscribe, onDialogue) {
   const exportScript  = useCallback(() => send({ type: 'export_script' }), [send])
   const changeScene   = useCallback((location) => send({ type: 'change_scene', location }), [send])
   const injectChaos   = useCallback((command) => send({ type: 'director_command', command }), [send])
+  const whisperDirective = useCallback((agent_id, whisper) => send({
+    type: 'director_whisper',
+    agent_id,
+    whisper,
+  }), [send])
   const generateImage = useCallback(() => send({ type: 'director_command', command: 'generate image' }), [send])
   const forceTension  = useCallback((value) => send({ type: 'force_scene_tension', value }), [send])
   const forceEmotion  = useCallback((agent_id, emotion, value) => send({ type: 'force_emotion', agent_id, emotion, value }), [send])
@@ -147,7 +152,7 @@ export function useSimulation(send, subscribe, onDialogue) {
     turnCount, currentBeat, beatProgress,
     // Actions
     startScene, stopScene, nextTurn, rewind, exportScript,
-    changeScene, injectChaos, generateImage,
+    changeScene, injectChaos, whisperDirective, generateImage,
     forceTension, forceEmotion, forceRelationship, forceGiveProp,
     configureScene, checkModel, pause, systemReset,
   }

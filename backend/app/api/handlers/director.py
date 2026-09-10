@@ -2,7 +2,12 @@
 Director-facing handlers: inject chaos commands, rewind turns, export script.
 """
 from app.api.connection import ConnectionManager, SimulationState
-from app.models.payloads import DirectorCommandPayload, ExportScriptPayload, RewindPayload
+from app.models.payloads import (
+    DirectorCommandPayload,
+    DirectorWhisperPayload,
+    ExportScriptPayload,
+    RewindPayload,
+)
 from app.services.image import build_scene_image_url
 
 
@@ -46,6 +51,31 @@ async def handle_director_command(
     from app.models.payloads import NextTurnPayload
     
     await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
+
+
+async def handle_director_whisper(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: DirectorWhisperPayload,
+) -> None:
+    async with sim.lock:
+        if payload.agent_id in sim.state.agents:
+            sim.state.agents[payload.agent_id].pending_whisper = payload.whisper.strip()
+            sim.update_last_history()
+
+    await manager.broadcast({
+        "type": "whisper_update",
+        "agent_id": payload.agent_id,
+        "whisper": payload.whisper.strip(),
+    })
+    await manager.broadcast({
+        "type": "action",
+        "content": f"[SECRET WHISPER TO {payload.agent_id.upper()}]: \"{payload.whisper.strip()}\"",
+    })
+    await manager.broadcast({
+        "type": "agents_update",
+        "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
 
 
 async def handle_rewind_turns(

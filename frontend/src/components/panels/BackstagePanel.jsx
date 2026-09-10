@@ -77,6 +77,23 @@ export function BackstagePanel() {
                   {ag.id}
                   {lastSpk === ag.id && <span className="spk-badge">LIVE</span>}
                 </div>
+                {ag.pending_whisper && (
+                  <div style={{
+                    margin: '6px 0 10px',
+                    padding: '5px 9px',
+                    borderRadius: 6,
+                    background: 'rgba(167,139,250,0.12)',
+                    border: '1px solid rgba(167,139,250,0.3)',
+                    color: 'var(--purple)',
+                    fontSize: 11,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    <span>🤫</span>
+                    <span style={{ fontStyle: 'italic', color: '#f0f2fc' }}>"{ag.pending_whisper}"</span>
+                  </div>
+                )}
                 {[
                   ['tension', '🔥', '#fc8181'], 
                   ['energy', '⚡', '#4ade80'], 

@@ -52,6 +52,7 @@ class AgentState(BaseModel):
     emotions: EmotionVector
     hidden_agenda: Optional[str] = None
     traits: Optional[str] = None  # New field for character personality/description
+    pending_whisper: Optional[str] = None  # Secret in-ear coaching from the Director
     relationships: dict[str, RelationshipVector] = Field(default_factory=dict)
     llm_config: ModelConfig = ModelConfig()
 

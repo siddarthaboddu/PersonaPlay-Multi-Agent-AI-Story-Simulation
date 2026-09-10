@@ -69,6 +69,12 @@ class DirectorCommandPayload(BaseModel):
     command: str
 
 
+class DirectorWhisperPayload(BaseModel):
+    type: Literal["director_whisper"]
+    agent_id: str
+    whisper: str
+
+
 class ForceEmotionPayload(BaseModel):
     type: Literal["force_emotion"]
     agent_id: str
@@ -111,6 +117,7 @@ class InboundPayload(RootModel):
             ConfigureScenePayload,
             CheckModelPayload,
             DirectorCommandPayload,
+            DirectorWhisperPayload,
             ForceEmotionPayload,
             ForceRelationshipPayload,
             ForceSceneTensionPayload,
@@ -191,4 +198,10 @@ class InsightUpdateMessage(BaseModel):
     agent_id: str
     insight: str
     turn: int
+
+
+class WhisperUpdateMessage(BaseModel):
+    type: Literal["whisper_update"] = "whisper_update"
+    agent_id: str
+    whisper: Optional[str] = None
 

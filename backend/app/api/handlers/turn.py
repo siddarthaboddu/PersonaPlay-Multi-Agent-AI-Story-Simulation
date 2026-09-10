@@ -89,6 +89,10 @@ async def handle_next_turn(
                 if not actual_speaker or actual_speaker not in sim.state.agents:
                     actual_speaker = sim.state.next_speaker
 
+                # Clear consumed whisper for the speaker
+                if actual_speaker in sim.state.agents:
+                    sim.state.agents[actual_speaker].pending_whisper = None
+
                 # 1. Broadcast monologue
                 await manager.broadcast({
                     "type": "monologue",
