@@ -3,7 +3,7 @@ import { useSimulationContext } from '../../context/SimulationContext'
 import { MessageItem } from './MessageItem'
 
 export function MessageFeed() {
-  const { messages } = useSimulationContext()
+  const { messages, retakeTurn, isProcessing } = useSimulationContext()
   const feedRef = useRef(null)
 
   useEffect(() => {
@@ -28,6 +28,8 @@ export function MessageFeed() {
     return false
   })
 
+  const lastDialogueIdx = visibleMessages.map(m => m.type).lastIndexOf('dialogue')
+
   return (
     <div className="feed" ref={feedRef}>
       {visibleMessages.length === 0 ? (
@@ -50,7 +52,13 @@ export function MessageFeed() {
         </div>
       ) : (
         visibleMessages.map((m, i) => (
-          <MessageItem key={i} message={m} />
+          <MessageItem 
+            key={i} 
+            message={m} 
+            isLatest={i === lastDialogueIdx} 
+            onRetake={retakeTurn}
+            isProcessing={isProcessing}
+          />
         ))
       )}
     </div>

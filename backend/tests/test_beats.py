@@ -43,3 +43,36 @@ def test_beats_as_json_structure():
         assert "end" in item
         assert "label" in item
         assert "description" in item
+
+
+@pytest.mark.asyncio
+async def test_handle_toggle_phases():
+    from unittest.mock import AsyncMock, MagicMock
+    from app.api.handlers.scene import handle_toggle_phases
+    from app.models.payloads import TogglePhasesPayload, InboundPayload
+    from app.models.state import OrchestratorState, SceneState, WorldState
+
+    raw = {"type": "toggle_phases", "enabled": False}
+    payload = InboundPayload.model_validate(raw).root
+    assert isinstance(payload, TogglePhasesPayload)
+    assert payload.enabled is False
+
+    mock_manager = AsyncMock()
+    mock_sim = MagicMock()
+    mock_sim.lock = AsyncMock()
+    mock_sim.state = OrchestratorState(
+        scene=SceneState(
+            active_scene="Test Scene",
+            world_state=WorldState(location="Living Room", lighting="Soft", props=[]),
+            narrative_tension=0.3,
+            turn_count=5,
+            phases_enabled=True,
+        ),
+        agents={},
+        chat_history=[],
+        next_speaker="",
+    )
+
+    await handle_toggle_phases(mock_manager, mock_sim, payload)
+    assert mock_sim.state.scene.phases_enabled is False
+    assert mock_manager.broadcast.call_count == 2

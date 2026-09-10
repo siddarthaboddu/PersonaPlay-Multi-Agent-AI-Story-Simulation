@@ -138,6 +138,7 @@ async def handle_rewind_turns(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
         },
     })
 

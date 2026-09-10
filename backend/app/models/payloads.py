@@ -56,6 +56,7 @@ class ConfigureScenePayload(BaseModel):
     location: Optional[str] = None
     lighting: Optional[str] = None
     props: Optional[List[Dict[str, Any]]] = None
+    phases_enabled: Optional[bool] = None
 
 
 class CheckModelPayload(BaseModel):
@@ -103,6 +104,15 @@ class SystemResetPayload(BaseModel):
     type: Literal["system_reset"]
 
 
+class RetakeTurnPayload(BaseModel):
+    type: Literal["retake_turn"]
+
+
+class TogglePhasesPayload(BaseModel):
+    type: Literal["toggle_phases"]
+    enabled: bool
+
+
 # Discriminated union — validated by 'type' field
 class InboundPayload(RootModel):
     root: Annotated[
@@ -110,6 +120,8 @@ class InboundPayload(RootModel):
             StartScenePayload,
             StopScenePayload,
             NextTurnPayload,
+            RetakeTurnPayload,
+            TogglePhasesPayload,
             GetStatePayload,
             ChangeScenePayload,
             RewindPayload,

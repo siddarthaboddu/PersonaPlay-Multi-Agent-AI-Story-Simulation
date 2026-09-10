@@ -10,7 +10,7 @@ import asyncio
 from app.agents.graph import graph
 from app.api.connection import ConnectionManager, SimulationState
 from app.config import settings
-from app.models.payloads import NextTurnPayload
+from app.models.payloads import NextTurnPayload, RetakeTurnPayload
 from app.models.state import OrchestratorState
 
 
@@ -102,12 +102,25 @@ async def handle_next_turn(
 
                 await asyncio.sleep(1)  # visual pause
 
+                emote = sim.state.agents[actual_speaker].last_emote if actual_speaker in sim.state.agents else None
+                is_gossip = any("[GOSSIP LEAK]" in l for l in new_lines)
+                gossip_note = next((l for l in new_lines if "[GOSSIP LEAK]" in l), None)
+
                 # 2. Broadcast dialogue
                 await manager.broadcast({
                     "type": "dialogue",
                     "agent_id": actual_speaker,
                     "content": dialogue,
+                    "emote": emote,
+                    "is_gossip": is_gossip,
+                    "gossip_note": gossip_note,
                 })
+
+                if is_gossip and gossip_note:
+                    await manager.broadcast({
+                        "type": "action",
+                        "content": gossip_note,
+                    })
 
                 # 3. Broadcast world + agent updates
                 await manager.broadcast({
@@ -135,6 +148,7 @@ async def handle_next_turn(
                         "tension": sim.state.scene.narrative_tension,
                         "energy": energy,
                         "turn_count": sim.state.scene.turn_count,
+                        "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
                     },
                 })
 
@@ -180,3 +194,74 @@ async def handle_next_turn(
                 })
 
         sim.current_task = asyncio.create_task(run_turn())
+
+
+async def handle_retake_turn(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: RetakeTurnPayload,
+) -> None:
+    """Re-roll the most recent turn: pops the latest snapshot and re-invokes an AI turn."""
+    async with sim.lock:
+        sim.cancel_task()
+        success = sim.restore(1)
+
+    if not success:
+        await manager.broadcast({
+            "type": "action",
+            "content": "[SYSTEM]: Cannot retake turn — at beginning of scene!",
+        })
+        return
+
+    # Reconstruct history from the restored state
+    reconstructed_messages = [
+        {"type": "action", "content": "🎬 [DIRECTOR CALLS RETAKE]: Cut! Rolling take 2..."}
+    ]
+    reconstructed_monologues = []
+
+    for line in sim.state.chat_history:
+        if "'s Thought]:" in line:
+            agent_id = line[1:line.find("'s")]
+            content = line.split("]:", 1)[-1].strip()
+            reconstructed_monologues.append({
+                "type": "monologue",
+                "agent_id": agent_id,
+                "content": content,
+            })
+        elif line.startswith("["):
+            reconstructed_messages.append({"type": "action", "content": line})
+        else:
+            agent_id = line.split(":")[0].strip() if ":" in line else None
+            reconstructed_messages.append({
+                "type": "dialogue",
+                "agent_id": agent_id,
+                "content": line,
+            })
+
+    await manager.broadcast({
+        "type": "history_reset",
+        "messages": reconstructed_messages,
+        "monologues": reconstructed_monologues,
+    })
+    await manager.broadcast({
+        "type": "world_update",
+        "world": sim.state.scene.world_state.model_dump(),
+    })
+    await manager.broadcast({
+        "type": "agents_update",
+        "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
+        },
+    })
+
+    # Immediately trigger a fresh AI turn for the re-roll!
+    await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
+

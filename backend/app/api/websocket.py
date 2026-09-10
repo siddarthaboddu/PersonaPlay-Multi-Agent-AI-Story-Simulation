@@ -35,8 +35,9 @@ from app.api.handlers.scene import (
     handle_get_state,
     handle_start_scene,
     handle_stop_scene,
+    handle_toggle_phases,
 )
-from app.api.handlers.turn import handle_next_turn
+from app.api.handlers.turn import handle_next_turn, handle_retake_turn
 from app.models.payloads import InboundPayload
 
 router = APIRouter()
@@ -71,6 +72,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_change_scene(manager, sim, payload)
             elif t == "next_turn":
                 await handle_next_turn(manager, sim, payload)
+            elif t == "retake_turn":
+                await handle_retake_turn(manager, sim, payload)
+            elif t == "toggle_phases":
+                await handle_toggle_phases(manager, sim, payload)
             elif t == "rewind_turns":
                 await handle_rewind_turns(manager, sim, payload)
             elif t == "director_command":

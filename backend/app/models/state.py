@@ -38,6 +38,7 @@ class SceneState(BaseModel):
     world_state: WorldState
     narrative_tension: float
     turn_count: int
+    phases_enabled: bool = True
 
 
 class ModelConfig(BaseModel):
@@ -53,6 +54,8 @@ class AgentState(BaseModel):
     hidden_agenda: Optional[str] = None
     traits: Optional[str] = None  # New field for character personality/description
     pending_whisper: Optional[str] = None  # Secret in-ear coaching from the Director
+    known_secrets: List[str] = Field(default_factory=list)  # Secrets, rumors, and director whispers remembered
+    last_emote: Optional[str] = None  # Last micro-gesture or visual emote displayed
     relationships: dict[str, RelationshipVector] = Field(default_factory=dict)
     llm_config: ModelConfig = ModelConfig()
 

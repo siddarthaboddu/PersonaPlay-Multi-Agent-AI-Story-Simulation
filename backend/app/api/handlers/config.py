@@ -63,6 +63,9 @@ async def handle_configure_scene(
                     ) for p in payload.props
                 ]
 
+            if payload.phases_enabled is not None:
+                sim.state.scene.phases_enabled = payload.phases_enabled
+
             # Ensure next_speaker is valid
             if new_agents:
                 sim.state.next_speaker = list(new_agents.keys())[0]
@@ -91,6 +94,7 @@ async def handle_configure_scene(
                     "tension": sim.state.scene.narrative_tension,
                     "energy": 0.8,
                     "turn_count": 0,
+                    "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
                 },
             })
         except Exception as e:

@@ -4,7 +4,8 @@ import { useSimulationContext } from '../../context/SimulationContext'
 export function DirectorPanel() {
   const { 
     world, vitals, agents, injectChaos, whisperDirective,
-    auto, autoDelay, setAutoPacing, autoCountdown, isProcessing
+    auto, autoDelay, setAutoPacing, autoCountdown, isProcessing,
+    phasesEnabled, togglePhases
   } = useSimulationContext()
 
   const [target, setTarget] = useState('world')
@@ -31,6 +32,63 @@ export function DirectorPanel() {
       </div>
 
       <div className="pb">
+        {/* Narrative Flow Mode: Dramatic Phases vs Direct Conversation */}
+        <div style={{
+          padding: '10px 12px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--border)',
+          borderRadius: '8px',
+          marginBottom: '14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: phasesEnabled ? 'var(--amber)' : '#38bdf8' }}>
+              {phasesEnabled ? '🎭 Dramatic Arc (20 Phases)' : '💬 Direct Conversation'}
+            </span>
+            <span style={{ fontSize: '10px', color: 'var(--t4)' }}>
+              {phasesEnabled ? 'Scripted Escalation' : 'Unscripted & Casual'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => togglePhases(true)}
+              style={{
+                flex: 1,
+                padding: '5px 8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                borderRadius: '5px',
+                border: `1px solid ${phasesEnabled ? 'rgba(245,166,35,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                background: phasesEnabled ? 'rgba(245,166,35,0.18)' : 'rgba(0,0,0,0.25)',
+                color: phasesEnabled ? 'var(--amber)' : 'var(--t3)',
+                cursor: 'pointer',
+              }}
+            >
+              🎭 20-Beat Arc
+            </button>
+            <button
+              type="button"
+              onClick={() => togglePhases(false)}
+              style={{
+                flex: 1,
+                padding: '5px 8px',
+                fontSize: '11px',
+                fontWeight: 700,
+                borderRadius: '5px',
+                border: `1px solid ${!phasesEnabled ? 'rgba(56,189,248,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                background: !phasesEnabled ? 'rgba(56,189,248,0.18)' : 'rgba(0,0,0,0.25)',
+                color: !phasesEnabled ? '#38bdf8' : 'var(--t3)',
+                cursor: 'pointer',
+              }}
+            >
+              💬 Direct Convo
+            </button>
+          </div>
+        </div>
+
         {/* Pacing Speed (when Auto Mode is active) */}
         {auto && (
           <div style={{

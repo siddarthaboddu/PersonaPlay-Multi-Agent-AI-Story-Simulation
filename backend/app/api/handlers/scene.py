@@ -7,6 +7,7 @@ from app.models.payloads import (
     GetStatePayload,
     StartScenePayload,
     StopScenePayload,
+    TogglePhasesPayload,
 )
 from app.services.memory import clear_memories
 
@@ -55,6 +56,7 @@ async def handle_start_scene(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": 0,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
         },
     })
 
@@ -123,3 +125,30 @@ async def handle_change_scene(
     from app.models.payloads import NextTurnPayload
     
     await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
+
+
+async def handle_toggle_phases(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: TogglePhasesPayload,
+) -> None:
+    """Toggle between structured dramatic beat phases and direct natural conversation."""
+    async with sim.lock:
+        sim.state.scene.phases_enabled = payload.enabled
+
+    mode_str = "🎭 Dramatic Phases Enabled" if payload.enabled else "💬 Direct Conversation Mode (Phases Disabled)"
+    await manager.broadcast({
+        "type": "action",
+        "content": f"[SYSTEM]: {mode_str}",
+    })
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": sim.state.scene.phases_enabled,
+        },
+    })
+

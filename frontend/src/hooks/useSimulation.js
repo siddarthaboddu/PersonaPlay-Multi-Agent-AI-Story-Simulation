@@ -17,6 +17,7 @@ export function useSimulation(send, subscribe) {
   const [world,      setWorld]      = useState({ location: 'Unknown', lighting: 'Unknown', props: [] })
   const [agents,     setAgents]     = useState([])
   const [beats,      setBeats]      = useState(BEATS)   // hydrated from /api/beats on mount
+  const [phasesEnabled, setPhasesEnabled] = useState(true)
 
   const autoRef  = useRef(false)
   const isProcessingRef = useRef(false)
@@ -144,6 +145,9 @@ export function useSimulation(send, subscribe) {
       }),
       subscribe('vitals_update', (d) => {
         setVitals((prev) => ({ ...prev, ...d.vitals }))
+        if (d.vitals && d.vitals.phases_enabled !== undefined) {
+          setPhasesEnabled(d.vitals.phases_enabled)
+        }
         isProcessingRef.current = false
         setIsProcessing(false)
         if (autoRef.current) {
@@ -183,6 +187,12 @@ export function useSimulation(send, subscribe) {
     setIsProcessing(true)
     send({ type: 'next_turn' })
   }, [send, clearAutoTimers])
+  const retakeTurn    = useCallback(() => {
+    clearAutoTimers()
+    isProcessingRef.current = true
+    setIsProcessing(true)
+    send({ type: 'retake_turn' })
+  }, [send, clearAutoTimers])
   const rewind        = useCallback((turns = 3) => send({ type: 'rewind_turns', turns }), [send])
   const exportScript  = useCallback(() => send({ type: 'export_script' }), [send])
   const changeScene   = useCallback((location) => send({ type: 'change_scene', location }), [send])
@@ -213,6 +223,10 @@ export function useSimulation(send, subscribe) {
   }), [send])
   const systemReset   = useCallback(() => send({ type: 'system_reset' }), [send])
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
+  const togglePhases  = useCallback((enabled) => {
+    setPhasesEnabled(enabled)
+    send({ type: 'toggle_phases', enabled })
+  }, [send])
   const pause         = useCallback(() => {
     setAuto(false)
     clearAutoTimers()
@@ -230,11 +244,11 @@ export function useSimulation(send, subscribe) {
 
   return {
     // State
-    messages, monologues, insights, vitals, world, agents, beats,
+    messages, monologues, insights, vitals, world, agents, beats, phasesEnabled,
     auto, setAuto, autoDelay, setAutoPacing, isProcessing, autoCountdown,
     turnCount, currentBeat, beatProgress,
     // Actions
-    startScene, stopScene, nextTurn, rewind, exportScript,
+    startScene, stopScene, nextTurn, retakeTurn, togglePhases, rewind, exportScript,
     changeScene, injectChaos, whisperDirective, generateImage,
     forceTension, forceEmotion, forceRelationship, forceGiveProp,
     configureScene, checkModel, pause, systemReset,
