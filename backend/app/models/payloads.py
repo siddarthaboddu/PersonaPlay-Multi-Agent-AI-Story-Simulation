@@ -175,3 +175,11 @@ class DownloadMessage(BaseModel):
     type: Literal["download"] = "download"
     filename: str
     content: str
+
+
+class InsightUpdateMessage(BaseModel):
+    type: Literal["insight_update"] = "insight_update"
+    agent_id: str
+    insight: str
+    turn: int
+

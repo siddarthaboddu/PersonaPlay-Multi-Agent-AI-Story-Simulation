@@ -133,6 +133,36 @@ async def handle_next_turn(
                     },
                 })
 
+                # 5. Deep Memory Reflection: synthesize higher-level insights asynchronously
+                turn_num = sim.state.scene.turn_count
+                from app.agents.beats import get_beat
+                current_beat = get_beat(turn_num)
+                is_dramatic = any(k in current_beat.upper() for k in ["REVELATION", "CRISIS", "CLIMAX", "BREAKING POINT", "POWER SHIFT"])
+                should_reflect = (turn_num > 0 and turn_num % 4 == 0) or is_dramatic
+
+                if should_reflect and actual_speaker in sim.state.agents:
+                    async def run_reflection_bg(
+                        aid=actual_speaker,
+                        ag=sim.state.agents[actual_speaker].model_copy(deep=True),
+                        tc=turn_num,
+                        beat_str=current_beat,
+                        chat_snapshot=list(sim.state.chat_history),
+                    ):
+                        try:
+                            from app.agents.reflection import generate_reflections
+                            new_insights = await generate_reflections(aid, ag, chat_snapshot, beat_str, tc)
+                            for ins in new_insights:
+                                await manager.broadcast({
+                                    "type": "insight_update",
+                                    "agent_id": aid,
+                                    "insight": ins,
+                                    "turn": tc,
+                                })
+                        except Exception as ex:
+                            print(f"[Turn] Background reflection error: {ex}")
+
+                    asyncio.create_task(run_reflection_bg())
+
                 sim.push_history()
 
             except asyncio.CancelledError:

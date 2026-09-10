@@ -3,21 +3,24 @@ import { useSimulationContext } from '../../context/SimulationContext'
 import { agentColor } from '../../utils/colors'
 
 export function BackstagePanel() {
-  const { agents, messages, monologues, forceEmotion } = useSimulationContext()
+  const { agents, messages, monologues, insights = [], forceEmotion } = useSimulationContext()
   const [tab, setTab] = useState('vitals')
   const monoRef = useRef(null)
+  const insightsRef = useRef(null)
 
   const lastSpk = [...messages].reverse().find(m => m.agent_id)?.agent_id
 
   useEffect(() => {
     if (tab === 'thoughts' && monoRef.current) {
       monoRef.current.scrollTop = monoRef.current.scrollHeight
+    } else if (tab === 'insights' && insightsRef.current) {
+      insightsRef.current.scrollTop = insightsRef.current.scrollHeight
     }
-  }, [tab, monologues])
+  }, [tab, monologues, insights])
 
   // Automatically switch to thoughts when a new one arrives
   useEffect(() => {
-    if (monologues.length > 0) {
+    if (monologues.length > 0 && tab !== 'insights') {
       setTab('thoughts')
     }
   }, [monologues.length])
@@ -42,6 +45,16 @@ export function BackstagePanel() {
           💭 Thoughts {monologues.length > 0 && (
             <span style={{ marginLeft: 4, fontSize: 10, background: 'rgba(167,139,250,.2)', color: 'var(--purple)', borderRadius: 4, padding: '1px 5px' }}>
               {monologues.length}
+            </span>
+          )}
+        </button>
+        <button 
+          className={`tab ${tab === 'insights' ? 'active' : ''}`} 
+          onClick={() => setTab('insights')}
+        >
+          💡 Insights {insights.length > 0 && (
+            <span style={{ marginLeft: 4, fontSize: 10, background: 'rgba(252,211,77,.2)', color: 'var(--amber)', borderRadius: 4, padding: '1px 5px' }}>
+              {insights.length}
             </span>
           )}
         </button>
@@ -97,6 +110,31 @@ export function BackstagePanel() {
                 <div key={i} className="mcard" style={{ borderLeftColor: col }}>
                   <div className="mwho" style={{ color: col }}>{m.agent_id}</div>
                   <div className="mtext">{m.content}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'insights' && (
+        <div className="pb">
+          <div className="mono-stream" ref={insightsRef}>
+            {insights.length === 0 && (
+              <div className="mempty">Synthesized reflections appear here<br/>as characters analyze events…</div>
+            )}
+            {insights.map((ins, i) => {
+              const idx = agents.findIndex(a => a.id === ins.agent_id)
+              const col = agentColor(idx >= 0 ? idx : 0)
+              return (
+                <div key={i} className="mcard" style={{ borderLeftColor: col, background: 'rgba(252, 211, 77, 0.05)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div className="mwho" style={{ color: col }}>{ins.agent_id}</div>
+                    <span style={{ fontSize: 10, color: 'var(--amber)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      Turn {ins.turn ?? '?'}
+                    </span>
+                  </div>
+                  <div className="mtext" style={{ color: '#e2e8f0' }}>💡 {ins.insight}</div>
                 </div>
               )
             })}

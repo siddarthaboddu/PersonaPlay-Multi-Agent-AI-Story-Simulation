@@ -12,6 +12,7 @@ const AUTO_TURN_DELAY = parseInt(import.meta.env.VITE_AUTO_TURN_DELAY ?? '3200',
 export function useSimulation(send, subscribe, onDialogue) {
   const [messages,   setMessages]   = useState([{ type: 'action', content: '[SYSTEM]: Ready — press ▶ Start Scene to begin.' }])
   const [monologues, setMonologues] = useState([])
+  const [insights,   setInsights]   = useState([])
   const [vitals,     setVitals]     = useState({ tension: 0.5, turn_count: 0 })
   const [world,      setWorld]      = useState({ location: 'Unknown', lighting: 'Unknown', props: [] })
   const [agents,     setAgents]     = useState([])
@@ -67,9 +68,13 @@ export function useSimulation(send, subscribe, onDialogue) {
       subscribe('world_update',  (d) => setWorld(d.world)),
       subscribe('agents_update', (d) => setAgents(d.agents)),
       subscribe('image_update',  (d) => setMessages((p) => [...p, { type: 'image', url: d.url, prompt: d.prompt }])),
+      subscribe('insight_update', (d) => {
+        setInsights((p) => [...p, d])
+      }),
       subscribe('history_reset', (d) => {
         setMessages(d.messages ?? [])
         setMonologues(d.monologues ?? [])
+        setInsights([])
       }),
       subscribe('vitals_update', (d) => {
         setVitals((prev) => ({ ...prev, ...d.vitals }))
@@ -130,7 +135,7 @@ export function useSimulation(send, subscribe, onDialogue) {
 
   return {
     // State
-    messages, monologues, vitals, world, agents, beats,
+    messages, monologues, insights, vitals, world, agents, beats,
     auto, setAuto,
     turnCount, currentBeat, beatProgress,
     // Actions

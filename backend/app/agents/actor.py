@@ -110,9 +110,9 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
         "...",
     )
 
-    # ── 4. Episodic memory retrieval ──────────────────────────────────────────
+    # ── 4. Episodic memory retrieval (hybrid insights + observations) ───────
     memories = await retrieve_memories(speaker, context[:200])
-    mem_context = f"\nYour past experiences relevant to this moment:\n{memories}" if memories else ""
+    mem_context = f"\n{memories}\n" if memories else ""
 
     # ── 5. Generate structured dialogue ──────────────────────────────────────
     parser = JsonOutputParser(pydantic_object=ActorOutput)
@@ -194,8 +194,8 @@ Output ONLY valid JSON. No preamble."""
             0.0, min(1.0, agent.emotions.suspicion + random.uniform(-0.02, 0.08))
         )
 
-        # ── 8. Store memory ───────────────────────────────────────────────────
-        await add_memory(speaker, dialogue)
+        # ── 8. Store episodic observation ─────────────────────────────────────
+        await add_memory(speaker, dialogue, memory_type="observation", turn=turn_num)
 
     except Exception as e:
         print(f"[Actor] Model error during dialogue/ECS: {e}")
