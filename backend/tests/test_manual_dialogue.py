@@ -155,3 +155,45 @@ async def test_handle_pause_scene_cancels_task_and_broadcasts():
     broadcast_types = [c.args[0]["type"] for c in mock_manager.broadcast.call_args_list]
     assert "action" in broadcast_types
     assert "vitals_update" in broadcast_types
+
+
+@pytest.mark.asyncio
+async def test_director_node_picks_other_character_after_manual_dialogue():
+    """director_node must pick the other character, never the character who just spoke."""
+    from app.agents.director import director_node
+    from app.models.state import OrchestratorState
+
+    maya = AgentState(
+        id="Maya",
+        emotions=EmotionVector(tension=0.5, affection=0.5, energy=0.5, suspicion=0.5),
+    )
+    leo = AgentState(
+        id="Leo",
+        emotions=EmotionVector(tension=0.5, affection=0.5, energy=0.5, suspicion=0.5),
+    )
+    scene = SceneState(
+        active_scene="Living Room",
+        world_state=WorldState(location="Living Room", lighting="Warm", props=[]),
+        narrative_tension=0.5,
+        turn_count=1,
+    )
+
+    # When Maya just spoke manually
+    state1 = OrchestratorState(
+        scene=scene,
+        agents={"Maya": maya, "Leo": leo},
+        chat_history=["Maya: I have something important to tell you."],
+        next_speaker="Maya",
+    )
+    next_state1 = await director_node(state1)
+    assert next_state1.next_speaker == "Leo", f"Expected Leo to speak after Maya, got {next_state1.next_speaker}"
+
+    # When Leo just spoke manually
+    state2 = OrchestratorState(
+        scene=scene,
+        agents={"Maya": maya, "Leo": leo},
+        chat_history=["Leo: What is it, Maya?"],
+        next_speaker="Leo",
+    )
+    next_state2 = await director_node(state2)
+    assert next_state2.next_speaker == "Maya", f"Expected Maya to speak after Leo, got {next_state2.next_speaker}"
