@@ -28,6 +28,7 @@ from app.api.handlers.director import (
     handle_director_command,
     handle_director_whisper,
     handle_export_script,
+    handle_manual_dialogue,
     handle_rewind_turns,
 )
 from app.api.handlers.scene import (
@@ -82,6 +83,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_director_command(manager, sim, payload)
             elif t == "director_whisper":
                 await handle_director_whisper(manager, sim, payload)
+            elif t == "manual_dialogue":
+                await handle_manual_dialogue(manager, sim, payload)
             elif t == "export_script":
                 await handle_export_script(manager, sim, payload, websocket)
             elif t == "configure_scene":

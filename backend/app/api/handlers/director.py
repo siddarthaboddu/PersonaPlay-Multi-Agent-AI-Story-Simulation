@@ -6,6 +6,7 @@ from app.models.payloads import (
     DirectorCommandPayload,
     DirectorWhisperPayload,
     ExportScriptPayload,
+    ManualDialoguePayload,
     RewindPayload,
 )
 from app.services.image import build_scene_image_url
@@ -76,6 +77,73 @@ async def handle_director_whisper(
         "type": "agents_update",
         "agents": [v.model_dump() for v in sim.state.agents.values()],
     })
+
+
+async def handle_manual_dialogue(
+    manager: ConnectionManager,
+    sim: SimulationState,
+    payload: ManualDialoguePayload,
+) -> None:
+    """Manually enter dialogue for a character, update state/memory, and prompt AI response."""
+    agent_id = payload.agent_id
+    raw_text = payload.content.strip()
+    if not raw_text:
+        return
+
+    clean_dialogue = raw_text if raw_text.startswith(f"{agent_id}:") else f"{agent_id}: {raw_text}"
+
+    async with sim.lock:
+        sim.cancel_task()
+        sim.state.chat_history.append(clean_dialogue)
+        sim.state.scene.turn_count += 1
+
+        # Cycle speaker to another agent so the other character responds
+        other_agents = [aid for aid in sim.state.agents.keys() if aid != agent_id]
+        if other_agents:
+            sim.state.next_speaker = other_agents[0]
+
+        # Update last emote on the speaking agent
+        if agent_id in sim.state.agents:
+            sim.state.agents[agent_id].last_emote = "💬"
+
+        sim.push_history()
+
+    # Store memory
+    from app.services.memory import add_memory
+    await add_memory(agent_id, clean_dialogue, memory_type="observation", turn=sim.state.scene.turn_count)
+
+    # Broadcast dialogue event
+    await manager.broadcast({
+        "type": "dialogue",
+        "agent_id": agent_id,
+        "content": clean_dialogue,
+        "emote": "💬",
+        "is_manual": True,
+    })
+
+    # Broadcast updated vitals
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
+        },
+    })
+
+    # Broadcast agent updates
+    await manager.broadcast({
+        "type": "agents_update",
+        "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
+
+    # Trigger AI response turn if requested
+    if payload.trigger_response:
+        from app.api.handlers.turn import handle_next_turn
+        from app.models.payloads import NextTurnPayload
+        await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
 
 
 async def handle_rewind_turns(

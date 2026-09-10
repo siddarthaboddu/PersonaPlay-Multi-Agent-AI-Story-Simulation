@@ -113,6 +113,13 @@ class TogglePhasesPayload(BaseModel):
     enabled: bool
 
 
+class ManualDialoguePayload(BaseModel):
+    type: Literal["manual_dialogue"]
+    agent_id: str
+    content: str
+    trigger_response: bool = True
+
+
 # Discriminated union — validated by 'type' field
 class InboundPayload(RootModel):
     root: Annotated[
@@ -122,6 +129,7 @@ class InboundPayload(RootModel):
             NextTurnPayload,
             RetakeTurnPayload,
             TogglePhasesPayload,
+            ManualDialoguePayload,
             GetStatePayload,
             ChangeScenePayload,
             RewindPayload,

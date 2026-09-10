@@ -3,7 +3,7 @@ import { useSimulationContext } from '../../context/SimulationContext'
 
 export function DirectorPanel() {
   const { 
-    world, vitals, agents, injectChaos, whisperDirective,
+    world, vitals, agents, injectChaos, whisperDirective, sendManualDialogue,
     auto, autoDelay, setAutoPacing, autoCountdown, isProcessing,
     phasesEnabled, togglePhases
   } = useSimulationContext()
@@ -16,10 +16,14 @@ export function DirectorPanel() {
     const text = directiveText.trim()
     if (!text) return
 
-    if (target === 'world') {
+    if (target.startsWith('speak_')) {
+      const agentId = target.replace('speak_', '')
+      sendManualDialogue(agentId, text, true)
+    } else if (target === 'world') {
       injectChaos(text)
     } else {
-      whisperDirective(target, text)
+      const agentId = target.replace('whisper_', '')
+      whisperDirective(agentId, text)
     }
     setDirectiveText('')
   }
@@ -204,9 +208,20 @@ export function DirectorPanel() {
               style={{ flex: 1 }}
             >
               <option value="world">🌍 Entire Stage (Event / Twist)</option>
-              {agents.map(a => (
-                <option key={a.id} value={a.id}>🤫 Secret Whisper to {a.id}</option>
-              ))}
+              {agents.length > 0 && (
+                <optgroup label="🗣️ Manual Dialogue (In-Character)">
+                  {agents.map(a => (
+                    <option key={`speak_${a.id}`} value={`speak_${a.id}`}>🗣️ Speak as {a.id}</option>
+                  ))}
+                </optgroup>
+              )}
+              {agents.length > 0 && (
+                <optgroup label="🤫 Secret Director Whisper">
+                  {agents.map(a => (
+                    <option key={`whisper_${a.id}`} value={`whisper_${a.id}`}>🤫 Whisper to {a.id}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
@@ -215,7 +230,9 @@ export function DirectorPanel() {
             placeholder={
               target === 'world' 
                 ? "E.g., 'The delivery driver rings the doorbell'…" 
-                : `Secret in-ear prompt for ${target}…`
+                : target.startsWith('speak_')
+                ? `Say dialogue aloud as ${target.replace('speak_', '')}…`
+                : `Secret in-ear prompt for ${target.replace('whisper_', '')}…`
             }
             value={directiveText} 
             onChange={(e) => setDirectiveText(e.target.value)}
@@ -255,6 +272,8 @@ export function DirectorPanel() {
               padding: '8px 12px', borderRadius: 8, border: 'none',
               background: target === 'world'
                 ? 'linear-gradient(135deg, var(--amber), #d97706)'
+                : target.startsWith('speak_')
+                ? 'linear-gradient(135deg, #38bdf8, #6366f1)'
                 : 'linear-gradient(135deg, var(--purple), #7c3aed)',
               color: '#000',
               fontWeight: 800,
@@ -263,7 +282,11 @@ export function DirectorPanel() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
           >
-            {target === 'world' ? '⚡ Inject Plot Event' : `🤫 Whisper to ${target}`}
+            {target === 'world' 
+              ? '⚡ Inject Plot Event' 
+              : target.startsWith('speak_')
+              ? `🗣️ Speak Line as ${target.replace('speak_', '')}`
+              : `🤫 Whisper to ${target.replace('whisper_', '')}`}
           </button>
         </form>
       </div>

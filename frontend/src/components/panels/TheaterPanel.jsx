@@ -1,6 +1,7 @@
 import { useSimulationContext } from '../../context/SimulationContext'
 import { Stage } from '../stage/Stage'
 import { MessageFeed } from '../feed/MessageFeed'
+import { ManualDialogueBar } from '../feed/ManualDialogueBar'
 
 export function TheaterPanel() {
   const { world } = useSimulationContext()
@@ -15,6 +16,7 @@ export function TheaterPanel() {
 
       <Stage />
       <MessageFeed />
+      <ManualDialogueBar />
     </div>
   )
 }

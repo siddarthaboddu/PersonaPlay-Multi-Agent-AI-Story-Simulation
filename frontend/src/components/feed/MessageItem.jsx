@@ -40,6 +40,21 @@ export function MessageItem({ message, isLatest, onRetake, isProcessing }) {
         <div className="mbody" style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
             <span className="mname" style={{ color: col, marginBottom: 0 }}>{message.agent_id}</span>
+            {message.is_manual && (
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                background: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.4)',
+                color: '#a5b4fc',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }} title="Spoken manually by user">
+                ✍️ Manual Line
+              </span>
+            )}
             {message.is_gossip && (
               <span className="gossip-badge" title={message.gossip_note || "Confidential secret leaked"}>
                 🤫 Secret Confided

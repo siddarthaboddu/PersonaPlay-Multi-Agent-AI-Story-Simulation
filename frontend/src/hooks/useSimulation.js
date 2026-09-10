@@ -227,6 +227,19 @@ export function useSimulation(send, subscribe) {
     setPhasesEnabled(enabled)
     send({ type: 'toggle_phases', enabled })
   }, [send])
+  const sendManualDialogue = useCallback((agent_id, content, trigger_response = true) => {
+    if (trigger_response) {
+      clearAutoTimers()
+      isProcessingRef.current = true
+      setIsProcessing(true)
+    }
+    send({
+      type: 'manual_dialogue',
+      agent_id,
+      content,
+      trigger_response,
+    })
+  }, [send, clearAutoTimers])
   const pause         = useCallback(() => {
     setAuto(false)
     clearAutoTimers()
@@ -249,7 +262,7 @@ export function useSimulation(send, subscribe) {
     turnCount, currentBeat, beatProgress,
     // Actions
     startScene, stopScene, nextTurn, retakeTurn, togglePhases, rewind, exportScript,
-    changeScene, injectChaos, whisperDirective, generateImage,
+    changeScene, injectChaos, whisperDirective, sendManualDialogue, generateImage,
     forceTension, forceEmotion, forceRelationship, forceGiveProp,
     configureScene, checkModel, pause, systemReset,
   }
