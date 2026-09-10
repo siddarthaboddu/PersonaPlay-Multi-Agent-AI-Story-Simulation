@@ -4,6 +4,7 @@ REST API routes (non-WebSocket operations).
 from fastapi import APIRouter
 
 from app.agents.beats import beats_as_json
+from app.constants.blueprints import get_starting_blueprints
 
 router = APIRouter(prefix="/api")
 
@@ -18,6 +19,15 @@ def get_beats():
     return beats_as_json()
 
 
+@router.get("/blueprints")
+def list_blueprints():
+    """
+    Returns pre-configured starter scenario blueprints.
+    """
+    return get_starting_blueprints()
+
+
 @router.get("/health")
 def health_check():
     return {"status": "ok", "service": "PersonaPlay Pro"}
+

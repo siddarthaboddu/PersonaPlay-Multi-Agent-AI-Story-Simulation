@@ -45,10 +45,11 @@ body {
 /* ─── Shell ──────────────────────────────────────────────────────────── */
 .shell {
   display: grid;
-  grid-template-rows: 58px 36px 1fr;
+  grid-template-rows: 58px 1fr;
   height: 100vh;
   min-height: 0;
 }
+
 
 /* ─── Top bar ────────────────────────────────────────────────────────── */
 .topbar {

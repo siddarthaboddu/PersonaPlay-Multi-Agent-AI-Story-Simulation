@@ -9,7 +9,6 @@ export function Stage() {
   return (
     <div className="stage">
       <div className="stage-spotlight"/>
-      <div className="slabel">Stage</div>
       {agents.map((ag, i) => (
         <Avatar 
           key={ag.id} 

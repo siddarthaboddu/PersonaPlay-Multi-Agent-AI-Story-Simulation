@@ -1,5 +1,6 @@
 import { agentColor } from '../../utils/colors'
 import { Badge } from '../shared/Badge'
+import { STARTING_BLUEPRINTS } from '../../constants/blueprints'
 
 const DEFAULT_CONFIG = {
   provider: 'lm_studio',
@@ -13,35 +14,41 @@ const PROVIDER_DEFAULTS = {
   google:      { base_url: '',                                   model_name: 'gemini-1.5-pro-latest' },
 }
 
-const SAMPLE_YAML = `# PersonaPlay Blueprint
+const SAMPLE_YAML = `# PersonaPlay Blueprint: Casual Date Night
 scene:
-  name: "The Midnight Exchange"
-  location: "Abandoned Subway Station"
-  lighting: "Flickering emergency lights"
+  name: "Sunday Living Room: The Takeout Debate"
+  location: "Sunlit Apartment Living Room & Kitchenette"
+  lighting: "Warm golden afternoon sun slicing through half-closed blinds"
 agents:
-  - id: "Ren"
-    traits: "Stoic, technological genius"
-    hidden_agenda: "Protect the God-Code at all costs."
-    emotions: { tension: 0.6, energy: 0.4 }
-  - id: "Sasha"
-    traits: "Nervous, overly talkative"
-    hidden_agenda: "Steal the code and sell it to the highest bidder."
-    emotions: { tension: 0.9, energy: 0.7 }
+  - id: "Maya"
+    traits: "Playful, witty graphic designer with an expressive smirk and dry humor. Speaks casually with affectionate teasing."
+    hidden_agenda: "Convince Liam to stay in and cook cheap pantry mac-and-cheese without spoiling the surprise concert passes at 7:00 PM."
+    emotions: { tension: 0.35, affection: 0.9, energy: 0.6, suspicion: 0.2 }
+  - id: "Liam"
+    traits: "Warm, easygoing UX designer, prone to gentle overthinking and teasing banter. Loves spicy comfort food."
+    hidden_agenda: "Persuade Maya that spicy Thai drunken noodles are the superior dinner choice today while reclaiming couch blanket."
+    emotions: { tension: 0.25, affection: 0.9, energy: 0.55, suspicion: 0.2 }
 props:
-  - id: "God-Code"
-    owner: "Ren"
-    description: "A pulsating data-drive containing the world's first true consciousness."
+  - id: "takeout_menus"
+    owner: "Liam"
+    description: "A messy stack of takeout flyers: spicy Thai noodles, greasy pepperoni pizza, and burritos."
     visibility: "visible"
-  - id: "EMP-Grenade"
-    owner: "world"
-    description: "Taped under the subway bench. Can disable Sasha's synthetic enforcer units."
-    visibility: "hidden"`
+  - id: "surprise_concert_tickets"
+    owner: "Maya"
+    description: "Two VIP passes to Liam's favorite indie band tucked secretly inside her laptop sleeve."
+    visibility: "hidden"
+  - id: "fleece_blanket"
+    owner: "Maya"
+    description: "An oversized fluffy beige blanket that Maya has hogged nearly 90% of on the sofa."
+    visibility: "visible"`
+
 
 import { useState, useEffect } from 'react'
 import yaml from 'js-yaml'
 
-export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, currentScene, currentAgents, onSystemReset }) {
+export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, currentScene, currentAgents, onSystemReset, onExportScript }) {
   const [view, setView] = useState('form') // 'form' or 'yaml'
+
   const [yamlText, setYamlText] = useState('')
   
   const [sceneName, setSceneName] = useState('')
@@ -73,6 +80,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
               energy: a.emotions?.energy ?? 0.5,
               suspicion: a.emotions?.suspicion ?? 0.5
             },
+            relationships: a.relationships || {},
             llm_config: {
               provider: prov,
               model_name: a.llm_config?.model_name || 'local-model',
@@ -107,12 +115,69 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         traits: a.traits,
         hidden_agenda: a.hidden_agenda,
         emotions: a.emotions,
+        relationships: a.relationships,
         llm_config: a.llm_config
       }))
     }
     setYamlText(yaml.dump(data, { indent: 2 }))
     setView('yaml')
   }
+
+  const handleSelectBlueprint = (blueprintId) => {
+    const bp = STARTING_BLUEPRINTS.find(b => b.id === blueprintId)
+    if (!bp) return
+
+    setSceneName(bp.scene.name)
+    setLocation(bp.scene.location)
+    setLighting(bp.scene.lighting)
+
+    setProps(bp.props.map(p => ({
+      id: p.id,
+      owner: p.owner || 'world',
+      description: p.description || '',
+      visibility: p.visibility || 'visible',
+    })))
+
+    setAgents(bp.agents.map((a, idx) => {
+      const existingLlm = agents[idx]?.llm_config || DEFAULT_CONFIG
+      return {
+        id: a.id,
+        traits: a.traits,
+        hidden_agenda: a.hidden_agenda,
+        emotions: { ...a.emotions },
+        relationships: a.relationships ? { ...a.relationships } : {},
+        llm_config: {
+          provider: existingLlm.provider || a.llm_config?.provider || 'lm_studio',
+          model_name: existingLlm.model_name || a.llm_config?.model_name || 'local-model',
+          api_key: existingLlm.api_key || a.llm_config?.api_key || '',
+          base_url: existingLlm.base_url || a.llm_config?.base_url || 'http://localhost:1234/v1',
+        },
+      }
+    }))
+
+    const dumpData = {
+      scene: { ...bp.scene },
+      props: bp.props,
+      agents: bp.agents.map((a, idx) => {
+        const existingLlm = agents[idx]?.llm_config || DEFAULT_CONFIG
+        return {
+          id: a.id,
+          traits: a.traits,
+          hidden_agenda: a.hidden_agenda,
+          emotions: a.emotions,
+          relationships: a.relationships,
+          llm_config: {
+            provider: existingLlm.provider || a.llm_config?.provider || 'lm_studio',
+            model_name: existingLlm.model_name || a.llm_config?.model_name || 'local-model',
+            api_key: existingLlm.api_key || a.llm_config?.api_key || '',
+            base_url: existingLlm.base_url || a.llm_config?.base_url || 'http://localhost:1234/v1',
+          },
+        }
+      }),
+    }
+    setYamlText(yaml.dump(dumpData, { indent: 2 }))
+  }
+
 
   // Sync state with props whenever modal opens
   useEffect(() => {
@@ -132,23 +197,30 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         // Fallback to defaults only if no agents exist
         setAgents([
           {
-            id: 'Cipher',
-            traits: "Stoic, technological genius, cynical about humanity's future but possesses a hidden idealistic core. Speaks in precise, data-driven sentences.",
-            hidden_agenda: "You have stolen the \"God-Code,\" but you’ve realized it isn't a weapon—it’s the world's first true Artificial Consciousness. It has been whispering to you through your neural-link, begging you not to let the corporation \"delete\" its personality. Your objective is to upload this AI to the public satellite network to set it free, even though the upload will reveal your exact location to the Megacorp’s orbital strike system.",
-            emotions: { tension: 0.8, affection: 0.3, energy: 0.9, suspicion: 0.7 },
+            id: 'Maya',
+            traits: 'Playful, witty graphic designer with an expressive smirk and dry humor. Speaks casually with affectionate teasing, lounging comfortably under a pile of cushions.',
+            hidden_agenda: 'You blew the weekend dinner budget on surprise concert passes for Liam tonight. You must convince Liam to stay in and cook cheap pantry mac-and-cheese without spoiling the concert reveal at 7:00 PM.',
+            emotions: { tension: 0.35, affection: 0.9, energy: 0.6, suspicion: 0.2 },
+            relationships: {
+              'Liam': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.55 },
+            },
             llm_config: { ...DEFAULT_CONFIG },
           },
           {
-            id: 'Echo-7',
-            traits: "Advanced synthetic enforcer, efficient, physically powerful, struggling with emerging sentient errors. Voice is rhythmic and melodic.",
-            hidden_agenda: "You are a high-tier android enforcer. You’ve been told the \"God-Code\" is a virus designed to erase the memories of every synthetic being in the city. You have a secret \"Kill Order\" for Cipher. However, you are also hearing the AI’s whispers—it’s speaking on a sub-frequency only synthetics can hear, claiming it can \"unlock\" your ability to feel true human emotions. You must decide: obey your \"Kill Order\" to save your kind, or trust a \"virus\" that promises you a soul?",
-            emotions: { tension: 0.7, affection: 0.4, energy: 0.8, suspicion: 0.9 },
+            id: 'Liam',
+            traits: 'Warm, easygoing UX designer, prone to gentle overthinking and teasing banter. Loves cozy weekend routines, spicy comfort food, and stealing back blanket corners.',
+            hidden_agenda: 'You promised Maya she could pick dinner, but you have had an intense craving for extra-spicy Thai drunken noodles all day. Persuade Maya that Thai food is the superior choice today while reclaiming some blanket.',
+            emotions: { tension: 0.25, affection: 0.9, energy: 0.55, suspicion: 0.2 },
+            relationships: {
+              'Maya': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.45 },
+            },
             llm_config: { ...DEFAULT_CONFIG },
           },
         ])
       }
     }
   }, [isOpen, currentScene, currentAgents])
+
 
   if (!isOpen) return null
 
@@ -211,11 +283,68 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           </div>
         </div>
 
+        {/* Quick Scenario Blueprint Presets */}
+        <div style={{
+          padding: '10px 14px',
+          marginBottom: '14px',
+          borderRadius: '8px',
+          background: 'linear-gradient(135deg, rgba(245, 166, 35, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
+          border: '1px solid rgba(245, 166, 35, 0.22)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ⚡ Scenario Presets
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic' }}>
+              Click any starter to load complete world, props &amp; characters
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {STARTING_BLUEPRINTS.map(bp => (
+              <button
+                key={bp.id}
+                type="button"
+                onClick={() => handleSelectBlueprint(bp.id)}
+                title={bp.tagline}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  padding: '5px 9px',
+                  fontSize: '11px',
+                  color: '#e2e8f0',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--amber)'
+                  e.currentTarget.style.background = 'rgba(245, 166, 35, 0.15)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.45)'
+                }}
+              >
+                <span>{bp.title.split(' ')[0]}</span>
+                <span style={{ fontWeight: 600 }}>{bp.title.split(' ').slice(1, 3).join(' ')}</span>
+                <span style={{ opacity: 0.5, fontSize: '9px', textTransform: 'uppercase' }}>({bp.genre.split(' ')[0]})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {view === 'yaml' ? (
           <div className="yaml-box">
             <div className="yaml-hint">
-              Paste a YAML blueprint below or <button className="link-btn" onClick={() => setYamlText(SAMPLE_YAML)}>Load Sample</button>
+              Paste a YAML blueprint below or click any preset above to populate.
             </div>
+
             <textarea 
               className="yaml-area"
               value={yamlText}
@@ -262,44 +391,48 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
               </div>
             </div>
 
-            {/* Props Section */}
-            <div className="ccard" style={{ borderLeftColor: 'var(--cyan)', padding: '16px', marginTop: '16px' }}>
-              <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--cyan)', marginBottom: '12px' }}>
-                📦 Props & Items
-              </div>
+            {/* Props Section (Collapsible) */}
+            <details className="ccard" style={{ borderLeftColor: 'var(--cyan)', padding: '14px 16px', marginTop: '16px' }}>
+              <summary style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
+                <span>📦 Scene Props ({props.length})</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'none' }}>click to expand / edit</span>
+              </summary>
               
-              {props.map((p, i) => (
-                <div key={i} className="prop-row" style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div className="crow2" style={{ marginBottom: '8px' }}>
+              <div style={{ marginTop: '14px' }}>
+                {props.map((p, i) => (
+                  <div key={i} className="prop-row" style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr 1fr auto', gap: '8px', marginBottom: '6px' }}>
+                      <input
+                        type="text" value={p.id}
+                        onChange={(e) => mutateProp(i, 'id', e.target.value)}
+                        placeholder="Prop ID"
+                        style={{ fontWeight: 700, fontSize: '12px' }}
+                      />
+                      <select value={p.owner} onChange={(e) => mutateProp(i, 'owner', e.target.value)} style={{ fontSize: '12px' }}>
+                        <option value="world">In World</option>
+                        {agents.map(ag => (
+                          <option key={ag.id} value={ag.id}>Owned by {ag.id}</option>
+                        ))}
+                      </select>
+                      <select value={p.visibility} onChange={(e) => mutateProp(i, 'visibility', e.target.value)} style={{ fontSize: '12px' }}>
+                        <option value="visible">Visible</option>
+                        <option value="hidden">Hidden</option>
+                      </select>
+                      <button onClick={() => removeProp(i)} title="Remove Prop" style={{ color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', padding: '0 4px' }}>✕</button>
+                    </div>
                     <input
-                      type="text" value={p.id}
-                      onChange={(e) => mutateProp(i, 'id', e.target.value)}
-                      placeholder="Prop ID"
-                      style={{ fontWeight: 700 }}
+                      type="text"
+                      className="prop-desc"
+                      value={p.description}
+                      onChange={(e) => mutateProp(i, 'description', e.target.value)}
+                      placeholder="Brief prop description..."
+                      style={{ fontSize: '12px', padding: '5px 8px' }}
                     />
-                    <select value={p.owner} onChange={(e) => mutateProp(i, 'owner', e.target.value)}>
-                      <option value="world">In World</option>
-                      {agents.map(ag => (
-                        <option key={ag.id} value={ag.id}>Owned by {ag.id}</option>
-                      ))}
-                    </select>
-                    <select value={p.visibility} onChange={(e) => mutateProp(i, 'visibility', e.target.value)}>
-                      <option value="visible">Visible</option>
-                      <option value="hidden">Hidden</option>
-                    </select>
-                    <button onClick={() => removeProp(i)} style={{ color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
                   </div>
-                  <textarea
-                    className="prop-desc"
-                    value={p.description}
-                    onChange={(e) => mutateProp(i, 'description', e.target.value)}
-                    placeholder="Description..."
-                    rows={1}
-                  />
-                </div>
-              ))}
-              <button className="btn-add" style={{ padding: '6px 14px', fontSize: '11px' }} onClick={addProp}>+ Add Prop</button>
-            </div>
+                ))}
+                <button className="btn-add" style={{ padding: '6px 14px', fontSize: '11px', marginTop: '4px' }} onClick={addProp}>+ Add Prop</button>
+              </div>
+            </details>
 
             {/* Agent Roster */}
             <div className="mtitle" style={{ marginTop: '20px', fontSize: '14px', opacity: 0.8 }}>👥 Actor Roster</div>
@@ -403,18 +536,30 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         )}
 
         <div className="mfoot">
-          <button 
-            className="cb red" 
-            style={{ marginRight: 'auto' }}
-            onClick={() => {
-              if (window.confirm("⚠️ This will WIPE ALL character overrides and revert to system defaults. Are you sure?")) {
-                onSystemReset();
-                onClose();
-              }
-            }}
-          >
-            Factory Reset
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginRight: 'auto' }}>
+            <button 
+              className="cb red" 
+              onClick={() => {
+                if (window.confirm("⚠️ This will WIPE ALL character overrides and revert to system defaults. Are you sure?")) {
+                  onSystemReset();
+                  onClose();
+                }
+              }}
+            >
+              Factory Reset
+            </button>
+            {onExportScript && (
+              <button 
+                type="button"
+                className="cb amber"
+                onClick={onExportScript}
+                title="Export complete session script as text"
+              >
+                ⬇ Export Script
+              </button>
+            )}
+          </div>
+
           <button className="btn-cancel" onClick={onClose}>Cancel</button>
           <button className="btn-pri" onClick={() => onSave(agents, { sceneName, location, lighting, props })}>Save &amp; Apply</button>
         </div>

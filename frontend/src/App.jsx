@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useSimulationContext } from './context/SimulationContext'
 import { Topbar } from './components/layout/Topbar'
-import { BeatBar } from './components/layout/BeatBar'
 import { DirectorPanel } from './components/panels/DirectorPanel'
 import { TheaterPanel } from './components/panels/TheaterPanel'
 import { BackstagePanel } from './components/panels/BackstagePanel'
@@ -9,7 +8,7 @@ import { ConfigModal } from './components/modals/ConfigModal'
 
 export default function App() {
   const { 
-    configureScene, checkModel, vitals, world, agents, systemReset, startScene
+    configureScene, checkModel, vitals, world, agents, systemReset, exportScript
   } = useSimulationContext()
   
   const [cfgOpen, setCfgOpen] = useState(false)
@@ -32,10 +31,11 @@ export default function App() {
         }}
         testResults={testRes}
         onSystemReset={systemReset}
+        onExportScript={exportScript}
       />
 
       <Topbar onOpenConfig={() => setCfgOpen(true)} />
-      <BeatBar />
+
 
       <div className="dash">
         <DirectorPanel />

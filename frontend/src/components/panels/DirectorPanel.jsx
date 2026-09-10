@@ -1,19 +1,27 @@
 import { useState } from 'react'
 import { useSimulationContext } from '../../context/SimulationContext'
-import { Toggle } from '../shared/Toggle'
 
 export function DirectorPanel() {
   const { 
-    auto, setAuto, tts, setTts, world, vitals, 
-    agents, forceTension, forceGiveProp, changeScene, injectChaos 
+    world, vitals, agents, injectChaos, whisperDirective,
+    auto, autoDelay, setAutoPacing, autoCountdown, isProcessing
   } = useSimulationContext()
 
-  const [loc, setLoc] = useState('')
-  const [cmd, setCmd] = useState('')
-  const [whisperTarget, setWhisperTarget] = useState('')
-  const [whisperText, setWhisperText] = useState('')
+  const [target, setTarget] = useState('world')
+  const [directiveText, setDirectiveText] = useState('')
 
-  const activeTarget = whisperTarget || (agents[0]?.id ?? '')
+  const handleDirect = (e) => {
+    e.preventDefault()
+    const text = directiveText.trim()
+    if (!text) return
+
+    if (target === 'world') {
+      injectChaos(text)
+    } else {
+      whisperDirective(target, text)
+    }
+    setDirectiveText('')
+  }
 
   return (
     <div className="panel">
@@ -21,138 +29,159 @@ export function DirectorPanel() {
         <div className="ph-icon" style={{ background: 'rgba(167,139,250,.18)' }}>🎬</div>
         <span className="ph-title">Director</span>
       </div>
-      <div className="pb">
-        <Toggle label="Auto-Play" checked={auto} onChange={setAuto} icon="🎞" />
-        <Toggle label="Voice (TTS)" checked={tts} onChange={setTts} icon="🔊" />
 
-        <div className="rule"/>
-        <div className="sec">🌍 World State</div>
-        <div className="wcard">
-          <div className="wrow"><span className="wl">📍 Location</span><span className="wv">{world.location}</span></div>
-          <div className="wrow"><span className="wl">💡 Lighting</span><span className="wv">{world.lighting}</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span className="wl">🔥 Scene Tension</span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)' }}>{Math.round((vitals.tension || 0.5) * 100)}%</span>
+      <div className="pb">
+        {/* Pacing Speed (when Auto Mode is active) */}
+        {auto && (
+          <div style={{
+            padding: '10px 12px',
+            background: 'rgba(74, 222, 128, 0.08)',
+            border: '1px solid rgba(74, 222, 128, 0.22)',
+            borderRadius: '8px',
+            marginBottom: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+              <span style={{ color: '#4ade80', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                🟢 Auto-Play Active
+              </span>
+              <span style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                {isProcessing ? '⏳ In flight…' : `Next in ${autoCountdown ?? 0}s`}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {[
+                { label: '⚡ Fast (2s)', val: 2000 },
+                { label: '🎬 Normal (3.5s)', val: 3500 },
+                { label: '☕ Relaxed (5s)', val: 5000 },
+              ].map(p => (
+                <button
+                  key={p.val}
+                  type="button"
+                  onClick={() => setAutoPacing(p.val)}
+                  style={{
+                    flex: 1,
+                    padding: '4px 6px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    borderRadius: '4px',
+                    background: autoDelay === p.val ? 'rgba(74, 222, 128, 0.3)' : 'rgba(0,0,0,0.35)',
+                    border: autoDelay === p.val ? '1px solid #4ade80' : '1px solid rgba(255,255,255,0.1)',
+                    color: autoDelay === p.val ? '#fff' : '#94a3b8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* World State Overview */}
+        <div className="sec">🌍 Atmosphere &amp; Stage</div>
+        <div className="wcard" style={{ marginBottom: '14px' }}>
+          <div className="wrow">
+            <span className="wl">📍 Location</span>
+            <span className="wv" style={{ fontWeight: 600 }}>{world.location}</span>
+          </div>
+          <div className="wrow">
+            <span className="wl">💡 Lighting</span>
+            <span className="wv" style={{ fontStyle: 'italic', opacity: 0.85 }}>{world.lighting}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+              <span className="wl">🔥 Dramatic Tension</span>
+              <span style={{ fontWeight: 800, color: 'var(--amber)' }}>{Math.round((vitals.tension || 0.5) * 100)}%</span>
             </div>
             <div className="tension-track">
               <div className="tension-fill" style={{ width: `${(vitals.tension || 0.5) * 100}%` }}/>
             </div>
-            <input 
-              type="range" min="0" max="1" step="0.05" value={vitals.tension || 0.5}
-              onChange={(e) => forceTension(parseFloat(e.target.value))}
-              style={{ accentColor: 'var(--amber)', '--c': 'var(--amber)' }}
-            />
           </div>
         </div>
 
+        {/* Props Pills */}
         {world.props?.length > 0 && (
-          <>
-            <div className="sec">🎒 Props</div>
-            {world.props.map(p => (
-              <div key={p.id} className="prop-row">
-                <span className="pname">{p.id.replace(/_/g, ' ')}</span>
-                <select 
-                  className="psel" 
-                  value={p.owner === 'Nobody' ? 'world' : p.owner} 
-                  onChange={(e) => forceGiveProp(p.id, e.target.value)}
+          <div style={{ marginBottom: '16px' }}>
+            <div className="sec">📦 Props in Play</div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {world.props.map(p => (
+                <span
+                  key={p.id}
+                  title={p.description}
+                  style={{
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: p.owner === 'world' ? 'var(--muted)' : 'var(--cyan)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
                 >
-                  <option value="world">In World (Nobody)</option>
-                  {agents.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
-                </select>
-              </div>
-            ))}
-          </>
+                  <span>{p.owner === 'world' ? '🌐' : '👤'}</span>
+                  <span>{p.id.replace(/_/g, ' ')}</span>
+                  {p.owner !== 'world' && (
+                    <span style={{ opacity: 0.6, fontSize: '9px' }}>({p.owner})</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="rule"/>
-        <div className="sec">🚀 Teleport Scene</div>
-        <form 
-          style={{ display: 'flex', gap: 6 }} 
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (loc.trim()) {
-              changeScene(loc);
-              setLoc('');
-            }
-          }}
-        >
-          <input 
-            type="text" placeholder="New location…" 
-            value={loc} onChange={(e) => setLoc(e.target.value)} 
-            style={{ flex: 1 }}
-          />
-          <button type="submit" className="btn-go">Go</button>
-        </form>
-
-        <div className="sec">⚡ Inject Chaos</div>
-        <form 
-          style={{ display: 'flex', flexDirection: 'column', gap: 8 }} 
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (cmd.trim()) {
-              injectChaos(cmd);
-              setCmd('');
-            }
-          }}
-        >
-          <input 
-            type="text" placeholder="E.g. 'Police appear in the rear view'" 
-            value={cmd} onChange={(e) => setCmd(e.target.value)}
-          />
-          <button type="submit" className="btn-chaos">🔥 Inject into Scene</button>
-        </form>
-
-        <div className="rule"/>
-        <div className="sec">🤫 Secret Whisper (In-Ear Coaching)</div>
-        <form 
-          style={{ display: 'flex', flexDirection: 'column', gap: 8 }} 
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (whisperText.trim() && activeTarget) {
-              whisperDirective(activeTarget, whisperText.trim());
-              setWhisperText('');
-            }
-          }}
-        >
+        {/* Unified Direct Scene Form */}
+        <div className="sec">✨ Direct the Scene</div>
+        <form onSubmit={handleDirect} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--t3)', whiteSpace: 'nowrap' }}>To Actor:</span>
+            <span style={{ fontSize: 11, color: 'var(--t3)', whiteSpace: 'nowrap' }}>Direct to:</span>
             <select
               className="psel"
-              value={activeTarget}
-              onChange={(e) => setWhisperTarget(e.target.value)}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
               style={{ flex: 1 }}
             >
-              {agents.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
+              <option value="world">🌍 Entire Stage (Event / Twist)</option>
+              {agents.map(a => (
+                <option key={a.id} value={a.id}>🤫 Secret Whisper to {a.id}</option>
+              ))}
             </select>
           </div>
 
           <input 
             type="text" 
-            placeholder={`Secret directive for ${activeTarget || 'actor'}…`}
-            value={whisperText} 
-            onChange={(e) => setWhisperText(e.target.value)}
+            placeholder={
+              target === 'world' 
+                ? "E.g., 'The delivery driver rings the doorbell'…" 
+                : `Secret in-ear prompt for ${target}…`
+            }
+            value={directiveText} 
+            onChange={(e) => setDirectiveText(e.target.value)}
           />
 
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {[
-              "Play along, then double-cross",
-              "Ask about their hidden past",
-              "Demand proof immediately",
-              "Conceal your fear with humor"
+              "Doorbell rings",
+              "Phone notification chimes",
+              "Playfully tease them",
+              "Bring up the secret",
             ].map(preset => (
               <button
                 key={preset}
                 type="button"
-                onClick={() => setWhisperText(preset)}
+                onClick={() => setDirectiveText(preset)}
                 style={{
                   fontSize: 10,
-                  padding: '2px 6px',
+                  padding: '3px 7px',
                   borderRadius: 4,
                   border: '1px solid var(--border)',
                   background: 'var(--s2)',
                   color: 'var(--t3)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 {preset}
@@ -163,16 +192,24 @@ export function DirectorPanel() {
           <button 
             type="submit" 
             style={{
+              marginTop: 4,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '7px 12px', borderRadius: 8, border: 'none',
-              background: 'linear-gradient(135deg, var(--purple), #7c3aed)',
-              color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer'
+              padding: '8px 12px', borderRadius: 8, border: 'none',
+              background: target === 'world'
+                ? 'linear-gradient(135deg, var(--amber), #d97706)'
+                : 'linear-gradient(135deg, var(--purple), #7c3aed)',
+              color: '#000',
+              fontWeight: 800,
+              fontSize: 12,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
           >
-            🤫 Whisper to {activeTarget || 'Actor'}
+            {target === 'world' ? '⚡ Inject Plot Event' : `🤫 Whisper to ${target}`}
           </button>
         </form>
       </div>
     </div>
   )
 }
+

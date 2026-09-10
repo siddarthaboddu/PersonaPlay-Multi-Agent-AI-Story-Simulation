@@ -5,17 +5,15 @@
 import { createContext, useContext } from 'react'
 import { useSimulation } from '../hooks/useSimulation'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { useTTS } from '../hooks/useTTS'
 
 export const SimulationContext = createContext(null)
 
 export function SimulationProvider({ children }) {
   const { isConnected, send, subscribe } = useWebSocket()
-  const ttsHook    = useTTS()
-  const simulation = useSimulation(send, subscribe, ttsHook.speak)
+  const simulation = useSimulation(send, subscribe)
 
   return (
-    <SimulationContext.Provider value={{ ...simulation, isConnected, send, ...ttsHook }}>
+    <SimulationContext.Provider value={{ ...simulation, isConnected, send }}>
       {children}
     </SimulationContext.Provider>
   )

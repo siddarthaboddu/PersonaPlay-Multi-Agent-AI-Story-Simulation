@@ -29,6 +29,16 @@ def create_app() -> FastAPI:
     app.include_router(ws_router)
     app.include_router(rest_router)
 
+    @app.get("/")
+    def root():
+        return {
+            "status": "online",
+            "service": "PersonaPlay Pro Backend",
+            "frontend_ui": "http://localhost:5173",
+            "docs": "/docs",
+            "websocket": "/ws",
+        }
+
     return app
 
 

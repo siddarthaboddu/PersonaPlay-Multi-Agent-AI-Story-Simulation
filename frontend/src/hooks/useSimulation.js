@@ -9,7 +9,7 @@ import { BEATS, getBeat, getBeatProgress } from '../constants/beats'
 
 const AUTO_TURN_DELAY = parseInt(import.meta.env.VITE_AUTO_TURN_DELAY ?? '3200', 10)
 
-export function useSimulation(send, subscribe, onDialogue) {
+export function useSimulation(send, subscribe) {
   const [messages,   setMessages]   = useState([{ type: 'action', content: '[SYSTEM]: Ready — press ▶ Start Scene to begin.' }])
   const [monologues, setMonologues] = useState([])
   const [insights,   setInsights]   = useState([])
@@ -19,12 +19,74 @@ export function useSimulation(send, subscribe, onDialogue) {
   const [beats,      setBeats]      = useState(BEATS)   // hydrated from /api/beats on mount
 
   const autoRef  = useRef(false)
+  const isProcessingRef = useRef(false)
   const timerRef = useRef(null)
+  const countdownIntervalRef = useRef(null)
+
   const [auto, _setAuto] = useState(false)
+  const [autoDelay, _setAutoDelay] = useState(AUTO_TURN_DELAY)
+  const autoDelayRef = useRef(AUTO_TURN_DELAY)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [autoCountdown, setAutoCountdown] = useState(null)
+
+  const clearAutoTimers = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current)
+      countdownIntervalRef.current = null
+    }
+    setAutoCountdown(null)
+  }, [])
+
+  const scheduleNextAutoTurn = useCallback((delayMs) => {
+    clearAutoTimers()
+    if (!autoRef.current) return
+
+    const delay = delayMs ?? autoDelayRef.current
+    let remaining = Math.max(1, Math.round(delay / 1000))
+    setAutoCountdown(remaining)
+
+    countdownIntervalRef.current = setInterval(() => {
+      remaining -= 1
+      if (remaining > 0) {
+        setAutoCountdown(remaining)
+      } else {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current)
+          countdownIntervalRef.current = null
+        }
+        setAutoCountdown(null)
+      }
+    }, 1000)
+
+    timerRef.current = setTimeout(() => {
+      clearAutoTimers()
+      if (autoRef.current && !isProcessingRef.current) {
+        isProcessingRef.current = true
+        setIsProcessing(true)
+        send({ type: 'next_turn' })
+      }
+    }, delay)
+  }, [clearAutoTimers, send])
 
   const setAuto = useCallback((val) => {
     autoRef.current = val
     _setAuto(val)
+    if (val) {
+      if (!isProcessingRef.current) {
+        scheduleNextAutoTurn(800)
+      }
+    } else {
+      clearAutoTimers()
+    }
+  }, [clearAutoTimers, scheduleNextAutoTurn])
+
+  const setAutoPacing = useCallback((ms) => {
+    autoDelayRef.current = ms
+    _setAutoDelay(ms)
   }, [])
 
   // ── Fetch authoritative beats from backend (single source of truth) ────────
@@ -57,10 +119,14 @@ export function useSimulation(send, subscribe, onDialogue) {
     const unsubs = [
       subscribe('dialogue', (d) => {
         setMessages((p) => [...p, d])
-        onDialogue?.(d.content, d.agent_id)
       }),
       subscribe('action', (d) => {
         setMessages((p) => [...p, d])
+        if (d.content && (d.content.includes('Triggering AI turn') || d.content.includes('already in progress'))) {
+          isProcessingRef.current = true
+          setIsProcessing(true)
+          clearAutoTimers()
+        }
       }),
       subscribe('monologue', (d) => {
         setMonologues((p) => [...p, d])
@@ -78,29 +144,45 @@ export function useSimulation(send, subscribe, onDialogue) {
       }),
       subscribe('vitals_update', (d) => {
         setVitals((prev) => ({ ...prev, ...d.vitals }))
+        isProcessingRef.current = false
+        setIsProcessing(false)
         if (autoRef.current) {
-          clearTimeout(timerRef.current)
-          timerRef.current = setTimeout(() => {
-            if (autoRef.current) send({ type: 'next_turn' })
-          }, AUTO_TURN_DELAY)
+          scheduleNextAutoTurn(autoDelayRef.current)
         }
       }),
       subscribe('download', (d) => triggerDownload(d.filename, d.content)),
       subscribe('error', (d) => {
         console.error('[WS Error]', d.code, d.detail)
+        isProcessingRef.current = false
+        setIsProcessing(false)
+        clearAutoTimers()
         setMessages((p) => [...p, {
           type: 'action',
           content: `[ERROR]: ${d.detail}`,
         }])
       }),
     ]
-    return () => unsubs.forEach((u) => u())
-  }, [subscribe, send, triggerDownload, onDialogue])
+    return () => {
+      unsubs.forEach((u) => u())
+      clearAutoTimers()
+    }
+  }, [subscribe, send, triggerDownload, clearAutoTimers, scheduleNextAutoTurn])
 
   // ── Action dispatchers ─────────────────────────────────────────────────────
   const startScene    = useCallback(() => send({ type: 'start_scene' }), [send])
-  const stopScene     = useCallback(() => { setAuto(false); send({ type: 'stop_scene' }) }, [send, setAuto])
-  const nextTurn      = useCallback(() => send({ type: 'next_turn' }), [send])
+  const stopScene     = useCallback(() => { 
+    setAuto(false)
+    clearAutoTimers()
+    isProcessingRef.current = false
+    setIsProcessing(false)
+    send({ type: 'stop_scene' }) 
+  }, [send, setAuto, clearAutoTimers])
+  const nextTurn      = useCallback(() => {
+    clearAutoTimers()
+    isProcessingRef.current = true
+    setIsProcessing(true)
+    send({ type: 'next_turn' })
+  }, [send, clearAutoTimers])
   const rewind        = useCallback((turns = 3) => send({ type: 'rewind_turns', turns }), [send])
   const exportScript  = useCallback(() => send({ type: 'export_script' }), [send])
   const changeScene   = useCallback((location) => send({ type: 'change_scene', location }), [send])
@@ -133,8 +215,9 @@ export function useSimulation(send, subscribe, onDialogue) {
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
   const pause         = useCallback(() => {
     setAuto(false)
+    clearAutoTimers()
     setMessages((p) => [...p, { type: 'action', content: '[SYSTEM]: ⏸ Paused.' }])
-  }, [setAuto])
+  }, [setAuto, clearAutoTimers])
 
   // ── Derived beat state ─────────────────────────────────────────────────────
   const turnCount    = vitals.turn_count ?? 0
@@ -148,7 +231,7 @@ export function useSimulation(send, subscribe, onDialogue) {
   return {
     // State
     messages, monologues, insights, vitals, world, agents, beats,
-    auto, setAuto,
+    auto, setAuto, autoDelay, setAutoPacing, isProcessing, autoCountdown,
     turnCount, currentBeat, beatProgress,
     // Actions
     startScene, stopScene, nextTurn, rewind, exportScript,
@@ -157,3 +240,4 @@ export function useSimulation(send, subscribe, onDialogue) {
     configureScene, checkModel, pause, systemReset,
   }
 }
+
