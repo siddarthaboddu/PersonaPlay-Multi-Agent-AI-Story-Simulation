@@ -43,8 +43,14 @@ def get_model(config: ModelConfig, creative: bool = False):
             temperature=0.85 if creative else 0.4,
         )
 
+    base_url = config.base_url
+    if config.provider == "openrouter" and (not base_url or "localhost" in base_url):
+        base_url = "https://openrouter.ai/api/v1"
+    elif config.provider == "lm_studio" and not base_url:
+        base_url = settings.lm_studio_base_url or "http://localhost:1234/v1"
+
     kwargs: dict = dict(
-        base_url=config.base_url,
+        base_url=base_url,
         api_key=api_key,
         model=config.model_name,
         max_retries=0,

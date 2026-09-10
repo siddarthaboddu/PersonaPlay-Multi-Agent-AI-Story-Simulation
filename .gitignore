@@ -1,2 +1,5 @@
 # Ignore the design documentation folder
 design doc/
+
+# Context documentation
+context.md

@@ -125,10 +125,13 @@ async def handle_force_give_prop(
     sim: SimulationState,
     payload: ForceGivePropPayload,
 ) -> None:
-    for p in sim.state.scene.world_state.props:
-        if p.id == payload.prop_id:
-            p.owner = payload.owner
-            break
+    async with sim.lock:
+        for p in sim.state.scene.world_state.props:
+            if p.id == payload.prop_id:
+                p.owner = payload.owner
+                break
+        sim.update_last_history()
+
     await manager.broadcast({
         "type": "action",
         "content": f"[DIRECTOR INJECTS]: Forced '{payload.prop_id}' to be owned by {payload.owner}.",
@@ -137,7 +140,6 @@ async def handle_force_give_prop(
         "type": "world_update",
         "world": sim.state.scene.world_state.model_dump(),
     })
-    sim.update_last_history()
 
 
 async def handle_force_emotion(
@@ -145,12 +147,15 @@ async def handle_force_emotion(
     sim: SimulationState,
     payload: ForceEmotionPayload,
 ) -> None:
-    if payload.agent_id in sim.state.agents:
-        setattr(sim.state.agents[payload.agent_id].emotions, payload.emotion, payload.value)
-        await manager.broadcast({
-            "type": "agents_update",
-            "agents": [v.model_dump() for v in sim.state.agents.values()],
-        })
+    async with sim.lock:
+        if payload.agent_id in sim.state.agents:
+            setattr(sim.state.agents[payload.agent_id].emotions, payload.emotion, payload.value)
+            sim.update_last_history()
+
+    await manager.broadcast({
+        "type": "agents_update",
+        "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
 
 async def handle_system_reset(
     manager: ConnectionManager,
@@ -188,11 +193,16 @@ async def handle_force_scene_tension(
     sim: SimulationState,
     payload: ForceSceneTensionPayload,
 ) -> None:
-    sim.state.scene.narrative_tension = payload.value
+    async with sim.lock:
+        sim.state.scene.narrative_tension = payload.value
+        sim.update_last_history()
+
     await manager.broadcast({
         "type": "vitals_update",
         "vitals": {
+            "scene_name": sim.state.scene.active_scene,
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.5,
+            "turn_count": sim.state.scene.turn_count,
         },
     })

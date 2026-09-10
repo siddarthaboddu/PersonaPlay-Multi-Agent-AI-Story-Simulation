@@ -9,6 +9,7 @@ import asyncio
 
 from app.agents.graph import graph
 from app.api.connection import ConnectionManager, SimulationState
+from app.config import settings
 from app.models.payloads import NextTurnPayload
 from app.models.state import OrchestratorState
 
@@ -49,6 +50,8 @@ async def handle_next_turn(
                 # 1. Append only the NEW messages (preserving Director injections in between)
                 new_lines = new_state.chat_history[len(snap.chat_history):]
                 sim.state.chat_history.extend(new_lines)
+                if len(sim.state.chat_history) > settings.history_window_size:
+                    sim.state.chat_history = sim.state.chat_history[-settings.history_window_size:]
                 
                 # 2. Update next_speaker and turn_count
                 sim.state.next_speaker = new_state.next_speaker
@@ -59,33 +62,31 @@ async def handle_next_turn(
                     if aid in sim.state.agents:
                         sim.state.agents[aid].emotions = ag.emotions
 
-                # 4. Selective World Update: Prop transfer
+                # 4. Selective World Update: Prop transfer and Location change
                 for p_new in new_state.scene.world_state.props:
                     for p_curr in sim.state.scene.world_state.props:
                         if p_new.id == p_curr.id and p_new.owner != p_curr.owner:
                             p_curr.owner = p_new.owner
                             break
+                if new_state.scene.world_state.location != snap.scene.world_state.location:
+                    sim.state.scene.world_state.location = new_state.scene.world_state.location
 
-                chat_hist = sim.state.chat_history
+                # 5. Extract actual speaker, monologue, and dialogue
+                monologue = "(Thinking…)"
+                dialogue = "…"
+                for line in new_lines:
+                    if "'s Thought]:" in line:
+                        monologue = line.split("]:", 1)[-1].strip()
+                    elif ":" in line:
+                        dialogue = line
 
-                # Derive actual speaker from the last dialogue line (director already
-                # advanced next_speaker, so it no longer points to who just spoke)
                 actual_speaker = None
-                for line in reversed(chat_hist):
-                    if "'s Thought]:" not in line and ":" in line:
-                        actual_speaker = line.split(":")[0].strip()
-                        break
+                if dialogue and ":" in dialogue:
+                    cand = dialogue.split(":")[0].strip()
+                    if cand in sim.state.agents:
+                        actual_speaker = cand
                 if not actual_speaker or actual_speaker not in sim.state.agents:
                     actual_speaker = sim.state.next_speaker
-
-                if len(chat_hist) >= 2:
-                    monologue = chat_hist[-2]
-                    if monologue.startswith("[") and "]:" in monologue:
-                        monologue = monologue.split("]:", 1)[-1].strip()
-                    dialogue = chat_hist[-1]
-                else:
-                    monologue = "(Thinking…)"
-                    dialogue = "…"
 
                 # 1. Broadcast monologue
                 await manager.broadcast({

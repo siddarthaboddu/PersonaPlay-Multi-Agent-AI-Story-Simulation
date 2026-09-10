@@ -21,6 +21,10 @@ async def director_node(state: OrchestratorState) -> OrchestratorState:
     if not agent_ids:
         return state
 
+    # For the opening turn (empty history), keep the designated opening speaker
+    if not state.chat_history and state.next_speaker in agent_ids:
+        return state
+
     # LLM-guided selection only for 3+ agents (round-robin is fine for 2)
     if len(agent_ids) > 2 and state.chat_history:
         try:

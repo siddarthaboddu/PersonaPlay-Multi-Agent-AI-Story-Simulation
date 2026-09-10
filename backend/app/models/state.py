@@ -8,9 +8,9 @@ from typing import List, Optional, Literal
 
 class Prop(BaseModel):
     id: str
-    owner: str  # character id or "world"
-    description: str
-    visibility: Literal["visible", "hidden"]
+    owner: str = "world"  # character id or "world"
+    description: str = ""
+    visibility: Literal["visible", "hidden"] = "visible"
 
 
 class WorldState(BaseModel):

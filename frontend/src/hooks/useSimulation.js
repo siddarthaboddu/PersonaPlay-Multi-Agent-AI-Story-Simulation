@@ -9,7 +9,7 @@ import { BEATS, getBeat, getBeatProgress } from '../constants/beats'
 
 const AUTO_TURN_DELAY = parseInt(import.meta.env.VITE_AUTO_TURN_DELAY ?? '3200', 10)
 
-export function useSimulation(send, subscribe) {
+export function useSimulation(send, subscribe, onDialogue) {
   const [messages,   setMessages]   = useState([{ type: 'action', content: '[SYSTEM]: Ready — press ▶ Start Scene to begin.' }])
   const [monologues, setMonologues] = useState([])
   const [vitals,     setVitals]     = useState({ tension: 0.5, turn_count: 0 })
@@ -56,6 +56,7 @@ export function useSimulation(send, subscribe) {
     const unsubs = [
       subscribe('dialogue', (d) => {
         setMessages((p) => [...p, d])
+        onDialogue?.(d.content, d.agent_id)
       }),
       subscribe('action', (d) => {
         setMessages((p) => [...p, d])
@@ -71,7 +72,7 @@ export function useSimulation(send, subscribe) {
         setMonologues(d.monologues ?? [])
       }),
       subscribe('vitals_update', (d) => {
-        setVitals(d.vitals)
+        setVitals((prev) => ({ ...prev, ...d.vitals }))
         if (autoRef.current) {
           clearTimeout(timerRef.current)
           timerRef.current = setTimeout(() => {
@@ -89,7 +90,7 @@ export function useSimulation(send, subscribe) {
       }),
     ]
     return () => unsubs.forEach((u) => u())
-  }, [subscribe, send, triggerDownload])
+  }, [subscribe, send, triggerDownload, onDialogue])
 
   // ── Action dispatchers ─────────────────────────────────────────────────────
   const startScene    = useCallback(() => send({ type: 'start_scene' }), [send])
@@ -108,7 +109,8 @@ export function useSimulation(send, subscribe) {
     agents,
     scene_name: metadata.sceneName,
     location: metadata.location,
-    lighting: metadata.lighting
+    lighting: metadata.lighting,
+    props: metadata.props,
   }), [send])
   const systemReset   = useCallback(() => send({ type: 'system_reset' }), [send])
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
@@ -119,8 +121,12 @@ export function useSimulation(send, subscribe) {
 
   // ── Derived beat state ─────────────────────────────────────────────────────
   const turnCount    = vitals.turn_count ?? 0
-  const currentBeat  = getBeat(turnCount)
-  const beatProgress = getBeatProgress(turnCount)
+  const currentBeat  = (beats && beats.length > 0)
+    ? (beats.find(([s, e]) => turnCount >= s && turnCount <= e) ?? beats[beats.length - 1])
+    : getBeat(turnCount)
+  const beatProgress = currentBeat && currentBeat[1] >= currentBeat[0]
+    ? Math.min(1, Math.max(0, (turnCount - currentBeat[0]) / (currentBeat[1] - currentBeat[0] + 1)))
+    : getBeatProgress(turnCount)
 
   return {
     // State

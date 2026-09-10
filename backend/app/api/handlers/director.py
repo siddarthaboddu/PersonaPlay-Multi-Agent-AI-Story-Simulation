@@ -32,8 +32,10 @@ async def handle_director_command(
         await manager.broadcast({
             "type": "vitals_update",
             "vitals": {
+                "scene_name": sim.state.scene.active_scene,
                 "tension": sim.state.scene.narrative_tension,
                 "energy": 0.9,
+                "turn_count": sim.state.scene.turn_count,
             },
         })
         sim.update_last_history()
@@ -51,8 +53,9 @@ async def handle_rewind_turns(
     sim: SimulationState,
     payload: RewindPayload,
 ) -> None:
-    sim.cancel_task()
-    success = sim.restore(payload.turns)
+    async with sim.lock:
+        sim.cancel_task()
+        success = sim.restore(payload.turns)
 
     if not success:
         await manager.broadcast({
@@ -97,6 +100,15 @@ async def handle_rewind_turns(
     await manager.broadcast({
         "type": "agents_update",
         "agents": [v.model_dump() for v in sim.state.agents.values()],
+    })
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+        },
     })
 
 

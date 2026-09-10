@@ -11,8 +11,8 @@ export const SimulationContext = createContext(null)
 
 export function SimulationProvider({ children }) {
   const { isConnected, send, subscribe } = useWebSocket()
-  const simulation = useSimulation(send, subscribe)
   const ttsHook    = useTTS()
+  const simulation = useSimulation(send, subscribe, ttsHook.speak)
 
   return (
     <SimulationContext.Provider value={{ ...simulation, isConnected, send, ...ttsHook }}>

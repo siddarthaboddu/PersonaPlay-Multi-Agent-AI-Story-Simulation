@@ -50,10 +50,10 @@ export function DirectorPanel() {
                 <span className="pname">{p.id.replace(/_/g, ' ')}</span>
                 <select 
                   className="psel" 
-                  value={p.owner} 
+                  value={p.owner === 'Nobody' ? 'world' : p.owner} 
                   onChange={(e) => forceGiveProp(p.id, e.target.value)}
                 >
-                  <option value="Nobody">Nobody</option>
+                  <option value="world">In World (Nobody)</option>
                   {agents.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}
                 </select>
               </div>

@@ -48,6 +48,15 @@ async def handle_start_scene(
         "type": "agents_update",
         "agents": [v.model_dump() for v in sim.state.agents.values()],
     })
+    await manager.broadcast({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": 0,
+        },
+    })
 
 
 async def handle_stop_scene(
@@ -55,7 +64,8 @@ async def handle_stop_scene(
     sim: SimulationState,
     payload: StopScenePayload,
 ) -> None:
-    sim.cancel_task()
+    async with sim.lock:
+        sim.cancel_task()
     await manager.broadcast({
         "type": "action",
         "content": "[SYSTEM]: 🛑 Simulation forcibly stopped.",
@@ -76,6 +86,15 @@ async def handle_get_state(
         "type": "agents_update",
         "agents": [v.model_dump() for v in sim.state.agents.values()],
     })
+    await websocket.send_json({
+        "type": "vitals_update",
+        "vitals": {
+            "scene_name": sim.state.scene.active_scene,
+            "tension": sim.state.scene.narrative_tension,
+            "energy": 0.8,
+            "turn_count": sim.state.scene.turn_count,
+        },
+    })
 
 
 async def handle_change_scene(
@@ -83,19 +102,21 @@ async def handle_change_scene(
     sim: SimulationState,
     payload: ChangeScenePayload,
 ) -> None:
-    if payload.location:
-        sim.state.scene.world_state.location = payload.location
-    if payload.scene_name:
-        sim.state.scene.active_scene = payload.scene_name
+    async with sim.lock:
+        if payload.location:
+            sim.state.scene.world_state.location = payload.location
+        if payload.scene_name:
+            sim.state.scene.active_scene = payload.scene_name
 
-    change_msg = f"[SCENE CHANGE]: Moved to {sim.state.scene.world_state.location}."
-    sim.state.chat_history.append(change_msg)
+        change_msg = f"[SCENE CHANGE]: Moved to {sim.state.scene.world_state.location}."
+        sim.state.chat_history.append(change_msg)
 
-    await manager.broadcast({"type": "action", "content": change_msg})
-    await manager.broadcast({
-        "type": "world_update",
-        "world": sim.state.scene.world_state.model_dump(),
-    })
+        await manager.broadcast({"type": "action", "content": change_msg})
+        await manager.broadcast({
+            "type": "world_update",
+            "world": sim.state.scene.world_state.model_dump(),
+        })
+        sim.update_last_history()
 
     # ── Trigger Immediate AI Reaction ────────────────────────────────────────
     from app.api.handlers.turn import handle_next_turn

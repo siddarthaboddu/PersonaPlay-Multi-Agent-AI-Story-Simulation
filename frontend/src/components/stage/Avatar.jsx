@@ -1,6 +1,6 @@
 export function Avatar({ agent, index, isSpeaking, color, total }) {
-  // Semi-circle theater layout
-  const angle = (index / (total - 1 || 1)) * 120 - 60 // -60 to 60 degrees
+  // Semi-circle theater layout (centered if solo actor)
+  const angle = total <= 1 ? 0 : (index / (total - 1)) * 120 - 60 // -60 to 60 degrees
   const radius = 35 // distance from center
   
   const left = 50 + radius * Math.sin((angle * Math.PI) / 180)

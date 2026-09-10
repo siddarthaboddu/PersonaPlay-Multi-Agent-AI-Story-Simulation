@@ -9,18 +9,26 @@ produce write races.
 import asyncio
 import os
 
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-
-from app.config import settings
-
-# Initialised once at module load — shared across the process
-_embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-_vectorstore = Chroma(
-    embedding_function=_embeddings,
-    persist_directory=settings.chroma_persist_dir,
-)
+_embeddings = None
+_vectorstore = None
 _lock = asyncio.Lock()
+
+
+def _get_vectorstore():
+    global _embeddings, _vectorstore
+    if _vectorstore is None:
+        try:
+            from langchain_chroma import Chroma
+            from langchain_huggingface import HuggingFaceEmbeddings
+            _embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            _vectorstore = Chroma(
+                embedding_function=_embeddings,
+                persist_directory=settings.chroma_persist_dir,
+            )
+        except Exception as e:
+            print(f"[Memory] Chroma/HuggingFace unavailable ({e}) — running without episodic vector store.")
+            return None
+    return _vectorstore
 
 
 # ── Sync helpers (used internally via asyncio.to_thread) ─────────────────────
@@ -28,11 +36,17 @@ _lock = asyncio.Lock()
 def _add(agent_id: str, memory: str) -> None:
     if not memory or not memory.strip():
         return
-    _vectorstore.add_texts(texts=[memory], metadatas=[{"agent_id": agent_id}])
+    vs = _get_vectorstore()
+    if vs is None:
+        return
+    vs.add_texts(texts=[memory], metadatas=[{"agent_id": agent_id}])
 
 
 def _retrieve(agent_id: str, query: str, k: int = 3) -> str:
-    results = _vectorstore.similarity_search(
+    vs = _get_vectorstore()
+    if vs is None:
+        return ""
+    results = vs.similarity_search(
         query, k=k, filter={"agent_id": agent_id}
     )
     if not results:
@@ -41,9 +55,12 @@ def _retrieve(agent_id: str, query: str, k: int = 3) -> str:
 
 
 def _clear() -> int:
-    all_ids = _vectorstore.get()["ids"]
+    vs = _get_vectorstore()
+    if vs is None:
+        return 0
+    all_ids = vs.get()["ids"]
     if all_ids:
-        _vectorstore.delete(ids=all_ids)
+        vs.delete(ids=all_ids)
     return len(all_ids)
 
 

@@ -81,3 +81,23 @@ def test_missing_required_field_raises_validation_error():
     with pytest.raises(ValidationError):
         # force_emotion requires agent_id, emotion, value
         InboundPayload.model_validate({"type": "force_emotion", "agent_id": "Alice"})
+
+
+def test_prop_defaults():
+    p = Prop(id="test_prop")
+    assert p.owner == "world"
+    assert p.description == ""
+    assert p.visibility == "visible"
+
+
+def test_configure_scene_with_props():
+    payload = InboundPayload.model_validate({
+        "type": "configure_scene",
+        "agents": [{"id": "Ren"}],
+        "scene_name": "New Scene",
+        "props": [{"id": "key_card", "owner": "Ren", "visibility": "visible"}],
+    }).root
+    assert payload.scene_name == "New Scene"
+    assert len(payload.props) == 1
+    assert payload.props[0]["id"] == "key_card"
+

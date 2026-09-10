@@ -60,23 +60,27 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         if (data.scene.lighting) setLighting(data.scene.lighting)
       }
       if (data.agents && Array.isArray(data.agents)) {
-        setAgents(data.agents.map(a => ({
-          id: a.id || 'Unnamed',
-          traits: a.traits || '',
-          hidden_agenda: a.hidden_agenda || '',
-          emotions: {
-            tension: a.emotions?.tension ?? 0.5,
-            affection: a.emotions?.affection ?? 0.5,
-            energy: a.emotions?.energy ?? 0.5,
-            suspicion: a.emotions?.suspicion ?? 0.5
-          },
-          llm_config: {
-            provider: a.llm_config?.provider || 'lm_studio',
-            model_name: a.llm_config?.model_name || 'local-model',
-            api_key: a.llm_config?.api_key || '',
-            base_url: a.llm_config?.base_url || 'http://localhost:1234/v1'
+        setAgents(data.agents.map(a => {
+          const prov = a.llm_config?.provider || 'lm_studio'
+          const defBase = prov === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'http://localhost:1234/v1'
+          return {
+            id: a.id || 'Unnamed',
+            traits: a.traits || '',
+            hidden_agenda: a.hidden_agenda || '',
+            emotions: {
+              tension: a.emotions?.tension ?? 0.5,
+              affection: a.emotions?.affection ?? 0.5,
+              energy: a.emotions?.energy ?? 0.5,
+              suspicion: a.emotions?.suspicion ?? 0.5
+            },
+            llm_config: {
+              provider: prov,
+              model_name: a.llm_config?.model_name || 'local-model',
+              api_key: a.llm_config?.api_key || '',
+              base_url: a.llm_config?.base_url || defBase
+            }
           }
-        })))
+        }))
       }
       if (data.props && Array.isArray(data.props)) {
         setProps(data.props.map(p => ({
@@ -85,6 +89,8 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           description: p.description || '',
           visibility: p.visibility || 'visible'
         })))
+      } else {
+        setProps([])
       }
       setView('form')
     } catch (e) {
@@ -375,6 +381,20 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                     <option value="google">Google</option>
                   </select>
                   <input type="text" value={ag.llm_config.model_name} onChange={(e) => mutate(i, 'model_name', e.target.value)} placeholder="Model" />
+                </div>
+                <div className="config-grid" style={{ marginTop: '8px' }}>
+                  <input 
+                    type="text" 
+                    value={ag.llm_config.base_url || ''} 
+                    onChange={(e) => mutate(i, 'base_url', e.target.value)} 
+                    placeholder={ag.llm_config.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : 'http://localhost:1234/v1'} 
+                  />
+                  <input 
+                    type="password" 
+                    value={ag.llm_config.api_key || ''} 
+                    onChange={(e) => mutate(i, 'api_key', e.target.value)} 
+                    placeholder="API Key (optional if in .env)" 
+                  />
                 </div>
               </div>
             ))}

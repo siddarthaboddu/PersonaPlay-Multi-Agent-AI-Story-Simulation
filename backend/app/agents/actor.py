@@ -143,7 +143,29 @@ Output ONLY valid JSON. No preamble."""
     dialogue = f"{speaker}: ... (silence)"
     try:
         dia_res = await creative_model.ainvoke([HumanMessage(content=prompt)])
-        parsed = parser.invoke(dia_res.content)
+        content = dia_res.content if hasattr(dia_res, "content") else str(dia_res)
+
+        parsed = None
+        try:
+            parsed = parser.invoke(content)
+        except Exception:
+            # Fallback 1: Extract JSON substring
+            import json
+            import re
+            match = re.search(r"\{.*\}", content, re.DOTALL)
+            if match:
+                try:
+                    cleaned_json = re.sub(r",\s*([\]}])", r"\1", match.group(0))
+                    parsed = json.loads(cleaned_json)
+                except Exception:
+                    pass
+
+            # Fallback 2: Plain text response
+            if not parsed or not isinstance(parsed, dict):
+                cleaned_text = content.strip()
+                cleaned_text = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned_text)
+                cleaned_text = re.sub(r"```$", "", cleaned_text).strip()
+                parsed = {"dialogue": cleaned_text or "..."}
 
         raw_dialogue = parsed.get("dialogue", "...")
         dialogue = raw_dialogue if raw_dialogue.startswith(speaker) else f"{speaker}: {raw_dialogue}"
@@ -178,12 +200,10 @@ Output ONLY valid JSON. No preamble."""
     except Exception as e:
         print(f"[Actor] Model error during dialogue/ECS: {e}")
 
-    # Append monologue + dialogue to history and enforce window limit
+    # Append monologue + dialogue to history (window limit enforced in turn.py after merge)
     new_history = list(state.chat_history)
     new_history.append(f"[{speaker}'s Thought]: {speaker_mono}")
     new_history.append(dialogue)
-    if len(new_history) > settings.history_window_size:
-        new_history = new_history[-settings.history_window_size:]
     state.chat_history = new_history
 
     print(f"[Actor] '{speaker}' completed turn {turn_num}.")
