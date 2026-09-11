@@ -298,20 +298,21 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
 
         {/* Quick Scenario Blueprint Presets */}
         <div style={{
-          padding: '10px 14px',
-          marginBottom: '14px',
-          borderRadius: '8px',
-          background: 'linear-gradient(135deg, rgba(245, 166, 35, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
-          border: '1px solid rgba(245, 166, 35, 0.22)',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          borderRadius: 'var(--r-sm)',
+          background: 'linear-gradient(135deg, rgba(245, 208, 97, 0.1) 0%, rgba(167, 139, 250, 0.08) 100%)',
+          border: '1px solid rgba(245, 208, 97, 0.3)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
+          gap: '10px',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               ⚡ Scenario Presets
             </span>
-            <span style={{ fontSize: '11px', color: 'var(--muted)', fontStyle: 'italic' }}>
+            <span style={{ fontSize: '11px', color: 'var(--t3)', fontStyle: 'italic' }}>
               Click any starter to load complete world, props &amp; characters
             </span>
           </div>
@@ -323,30 +324,23 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                 onClick={() => handleSelectBlueprint(bp.id)}
                 title={bp.tagline}
                 style={{
-                  background: 'rgba(0, 0, 0, 0.45)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: '6px',
-                  padding: '5px 9px',
-                  fontSize: '11px',
-                  color: '#e2e8f0',
+                  background: 'rgba(5, 7, 15, 0.65)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-pill)',
+                  padding: '5px 11px',
+                  fontSize: '11.5px',
+                  fontFamily: 'var(--font-sans)',
+                  color: 'var(--t2)',
                   cursor: 'pointer',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '5px',
                   transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--amber)'
-                  e.currentTarget.style.background = 'rgba(245, 166, 35, 0.15)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
-                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.45)'
                 }}
               >
                 <span>{bp.title.split(' ')[0]}</span>
-                <span style={{ fontWeight: 600 }}>{bp.title.split(' ').slice(1, 3).join(' ')}</span>
-                <span style={{ opacity: 0.5, fontSize: '9px', textTransform: 'uppercase' }}>({bp.genre.split(' ')[0]})</span>
+                <span style={{ fontWeight: 700 }}>{bp.title.split(' ').slice(1, 3).join(' ')}</span>
+                <span style={{ opacity: 0.5, fontSize: '9.5px', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>({bp.genre.split(' ')[0]})</span>
               </button>
             ))}
           </div>
@@ -370,8 +364,8 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         ) : (
           <div className="form-scroll-area">
             {/* Scene Settings */}
-            <div className="ccard" style={{ borderLeftColor: 'var(--amber)', padding: '16px' }}>
-              <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--amber)', marginBottom: '12px' }}>
+            <div className="ccard" style={{ borderLeftColor: 'var(--gold)', padding: '16px' }}>
+              <div className="chead" style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '12px' }}>
                 🎬 World Blueprint
               </div>
               
@@ -408,7 +402,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             <details className="ccard" style={{ borderLeftColor: 'var(--cyan)', padding: '14px 16px', marginTop: '16px' }}>
               <summary style={{ fontWeight: 800, fontSize: 13, textTransform: 'uppercase', color: 'var(--cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', userSelect: 'none' }}>
                 <span>📦 Scene Props ({props.length})</span>
-                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'none' }}>click to expand / edit</span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--t3)', textTransform: 'none' }}>click to expand / edit</span>
               </summary>
               
               <div style={{ marginTop: '14px' }}>

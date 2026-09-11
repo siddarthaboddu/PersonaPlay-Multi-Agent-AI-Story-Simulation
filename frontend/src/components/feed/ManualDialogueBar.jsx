@@ -47,18 +47,20 @@ export function ManualDialogueBar() {
   return (
     <div style={{
       borderTop: '1px solid var(--border)',
-      background: 'rgba(15, 23, 42, 0.85)',
-      backdropFilter: 'blur(10px)',
-      padding: '10px 14px',
+      background: 'rgba(10, 13, 24, 0.88)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      padding: '11px 16px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '8px',
+      gap: '9px',
       flexShrink: 0,
+      boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.4)',
     }}>
       {/* Top bar: Character selector pills & Pause/Auto + AI Response toggle */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ fontSize: '10.5px', fontWeight: 800, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Speak as:
           </span>
           {effectiveAgents.map((a, idx) => {
@@ -72,17 +74,17 @@ export function ManualDialogueBar() {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  padding: '3px 9px',
-                  borderRadius: '16px',
-                  fontSize: '11px',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--r-pill)',
+                  fontSize: '11.5px',
                   fontWeight: isSelected ? 800 : 500,
-                  border: `1px solid ${isSelected ? color : 'rgba(255,255,255,0.08)'}`,
-                  background: isSelected ? `${color}25` : 'rgba(0,0,0,0.25)',
+                  border: `1px solid ${isSelected ? color : 'var(--border)'}`,
+                  background: isSelected ? `${color}25` : 'rgba(255, 255, 255, 0.03)',
                   color: isSelected ? '#ffffff' : 'var(--t3)',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? `0 0 10px ${color}33` : 'none',
+                  boxShadow: isSelected ? `0 0 12px ${color}40` : 'none',
                 }}
               >
                 <span style={{
@@ -90,7 +92,7 @@ export function ManualDialogueBar() {
                   height: '8px',
                   borderRadius: '50%',
                   background: color,
-                  boxShadow: isSelected ? `0 0 6px ${color}` : 'none',
+                  boxShadow: isSelected ? `0 0 8px ${color}` : 'none',
                 }} />
                 {a.id}
               </button>
@@ -107,18 +109,18 @@ export function ManualDialogueBar() {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '3px 8px',
+                gap: '5px',
+                padding: '3px 9px',
                 borderRadius: '6px',
-                fontSize: '10px',
+                fontSize: '10.5px',
                 fontWeight: 800,
-                border: '1px solid rgba(245, 166, 35, 0.4)',
-                background: 'rgba(245, 166, 35, 0.2)',
-                color: 'var(--amber)',
+                border: '1px solid rgba(245, 208, 97, 0.45)',
+                background: 'rgba(245, 208, 97, 0.15)',
+                color: 'var(--gold)',
                 cursor: 'pointer',
-                animation: 'pulseGlow 2s infinite ease-in-out',
+                transition: 'all 0.15s ease',
               }}
-              title="Pause auto mode to take your time writing dialogue"
+              title="Pause auto mode to write dialogue"
             >
               <span>⏸ Pause Auto</span>
             </button>
@@ -126,11 +128,12 @@ export function ManualDialogueBar() {
             <span style={{
               fontSize: '10px',
               color: '#38bdf8',
-              background: 'rgba(56,189,248,0.1)',
-              border: '1px solid rgba(56,189,248,0.25)',
-              padding: '2px 7px',
-              borderRadius: '4px',
-              fontWeight: 700,
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              padding: '2px 8px',
+              borderRadius: 'var(--r-pill)',
+              fontWeight: 800,
+              letterSpacing: '0.04em'
             }}>
               ⏸ Paused
             </span>
@@ -139,8 +142,9 @@ export function ManualDialogueBar() {
           <label style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '5px',
-            fontSize: '10px',
+            gap: '6px',
+            fontSize: '11px',
+            fontWeight: 600,
             color: 'var(--t3)',
             cursor: 'pointer',
             userSelect: 'none',
@@ -150,7 +154,7 @@ export function ManualDialogueBar() {
               type="checkbox"
               checked={triggerResponse}
               onChange={(e) => setTriggerResponse(e.target.checked)}
-              style={{ width: '12px', height: '12px', cursor: 'pointer', accentColor: 'var(--purple)' }}
+              style={{ width: '13px', height: '13px', cursor: 'pointer', accentColor: 'var(--purple)' }}
             />
             <span>AI Reply</span>
           </label>
@@ -168,21 +172,22 @@ export function ManualDialogueBar() {
             disabled={isProcessing}
             placeholder={
               isProcessing 
-                ? "Characters conversing..." 
+                ? "Characters conversing…" 
                 : auto
-                ? `Auto running (click to pause & speak as ${selectedAgentId || 'character'})...`
-                : `Type dialogue for ${selectedAgentId || 'character'}... (Enter to speak)`
+                ? `Auto running (click to pause & speak as ${selectedAgentId || 'character'})…`
+                : `Say something as ${selectedAgentId || 'character'}… (Press Enter to speak)`
             }
             style={{
-              paddingLeft: '12px',
-              paddingRight: '12px',
-              paddingTop: '8px',
-              paddingBottom: '8px',
-              fontSize: '12px',
-              borderRadius: '8px',
-              background: 'rgba(0,0,0,0.4)',
-              border: `1px solid ${selectedAgentId ? `${currentColor}40` : 'var(--bhi)'}`,
+              paddingLeft: '14px',
+              paddingRight: '14px',
+              paddingTop: '9px',
+              paddingBottom: '9px',
+              fontSize: '13px',
+              borderRadius: '10px',
+              background: 'rgba(5, 7, 15, 0.7)',
+              border: `1px solid ${selectedAgentId ? `${currentColor}60` : 'var(--border)'}`,
               color: 'var(--t1)',
+              boxShadow: selectedAgentId ? `0 0 14px ${currentColor}15` : 'none',
             }}
           />
         </div>
@@ -193,12 +198,12 @@ export function ManualDialogueBar() {
             onClick={pause}
             style={{
               padding: '8px 12px',
-              fontSize: '11px',
+              fontSize: '11.5px',
               fontWeight: 700,
-              borderRadius: '8px',
-              border: '1px solid rgba(245, 166, 35, 0.4)',
-              background: 'rgba(245, 166, 35, 0.15)',
-              color: 'var(--amber)',
+              borderRadius: '9px',
+              border: '1px solid rgba(245, 208, 97, 0.4)',
+              background: 'rgba(245, 208, 97, 0.15)',
+              color: 'var(--gold)',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
@@ -212,25 +217,28 @@ export function ManualDialogueBar() {
           type="submit"
           disabled={!text.trim() || isProcessing}
           style={{
-            padding: '8px 14px',
+            padding: '9px 16px',
             fontSize: '12px',
-            fontWeight: 700,
-            borderRadius: '8px',
+            fontFamily: 'var(--font-sans)',
+            fontWeight: 800,
+            borderRadius: '9px',
             border: 'none',
             background: text.trim() && !isProcessing
               ? `linear-gradient(135deg, ${currentColor}, #6366f1)`
-              : 'rgba(255,255,255,0.06)',
-            color: text.trim() && !isProcessing ? '#000' : 'var(--t4)',
+              : 'rgba(255, 255, 255, 0.05)',
+            color: text.trim() && !isProcessing ? '#050711' : 'var(--t4)',
             cursor: text.trim() && !isProcessing ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
-            gap: '5px',
+            gap: '6px',
             whiteSpace: 'nowrap',
             transition: 'all 0.15s ease',
+            boxShadow: text.trim() && !isProcessing ? `0 0 16px ${currentColor}40` : 'none',
           }}
         >
           <span>🗣️</span>
           <span>Speak</span>
+          <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2, fontFamily: 'var(--font-mono)' }}>↵</span>
         </button>
       </form>
     </div>

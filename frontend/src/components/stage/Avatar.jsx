@@ -39,7 +39,14 @@ export function Avatar({ agent, index, isSpeaking, color, total }) {
   return (
     <div 
       className={`avatar ${isSpeaking ? 'speaking' : ''}`}
-      style={{ left: `${left}%`, top: `${top}%`, background: color }}
+      style={{ 
+        left: `${left}%`, 
+        top: `${top}%`, 
+        background: `linear-gradient(135deg, ${color}, ${color}cc)`,
+        boxShadow: isSpeaking 
+          ? `0 0 24px ${color}88, 0 0 36px rgba(245,208,97,0.5), 0 8px 24px rgba(0,0,0,0.8)`
+          : `0 4px 16px rgba(0,0,0,0.6), 0 0 12px ${color}40`
+      }}
       title={`${agent.id} — ${emoteTitle}`}
     >
       <div 
@@ -48,8 +55,15 @@ export function Avatar({ agent, index, isSpeaking, color, total }) {
       >
         {emote}
       </div>
-      {agent.id.substring(0, 2).toUpperCase()}
-      <span className="atag">{agent.id}</span>
+      <span style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)', letterSpacing: '0.05em' }}>
+        {agent.id.substring(0, 2).toUpperCase()}
+      </span>
+      <span className="atag">
+        {agent.id}
+        {agent.pending_whisper && (
+          <span style={{ marginLeft: 3, fontSize: 8, color: 'var(--purple)' }} title="Holds director whisper">🤫</span>
+        )}
+      </span>
     </div>
   )
 }
