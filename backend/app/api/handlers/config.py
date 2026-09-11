@@ -48,6 +48,7 @@ async def handle_configure_scene(
                         })
                     ),
                     relationships=rels,
+                    relationship_context=char.get("relationship_context", {}),
                     llm_config=ModelConfig(**char.get("llm_config", {})),
                 )
             sim.state.agents = new_agents

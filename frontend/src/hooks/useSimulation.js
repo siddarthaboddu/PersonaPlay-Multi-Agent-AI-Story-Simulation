@@ -17,7 +17,7 @@ export function useSimulation(send, subscribe) {
   const [world,      setWorld]      = useState({ location: 'Unknown', lighting: 'Unknown', props: [] })
   const [agents,     setAgents]     = useState([])
   const [beats,      setBeats]      = useState(BEATS)   // hydrated from /api/beats on mount
-  const [phasesEnabled, setPhasesEnabled] = useState(true)
+  const [phasesEnabled, setPhasesEnabled] = useState(false)
 
   const autoRef  = useRef(false)
   const isProcessingRef = useRef(false)

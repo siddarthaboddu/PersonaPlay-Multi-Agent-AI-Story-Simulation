@@ -38,7 +38,7 @@ class SceneState(BaseModel):
     world_state: WorldState
     narrative_tension: float
     turn_count: int
-    phases_enabled: bool = True
+    phases_enabled: bool = False
 
 
 class ModelConfig(BaseModel):
@@ -57,6 +57,10 @@ class AgentState(BaseModel):
     known_secrets: List[str] = Field(default_factory=list)  # Secrets, rumors, and director whispers remembered
     last_emote: Optional[str] = None  # Last micro-gesture or visual emote displayed
     relationships: dict[str, RelationshipVector] = Field(default_factory=dict)
+    # Human-readable social facts complement numeric affinity and define roles,
+    # expectations, and boundaries that scores cannot express by themselves.
+    # cannot express roles, boundaries, or social expectations by itself.
+    relationship_context: dict[str, str] = Field(default_factory=dict)
     llm_config: ModelConfig = ModelConfig()
 
 
@@ -66,3 +70,7 @@ class OrchestratorState(BaseModel):
     agents: dict[str, AgentState]
     chat_history: List[str]
     next_speaker: str
+    # Set only for a user-authored character line. The following AI turn uses
+    # this as a hard conversational anchor, then turn.py clears it from live state.
+    manual_reply_speaker: Optional[str] = None
+    manual_reply_content: Optional[str] = None

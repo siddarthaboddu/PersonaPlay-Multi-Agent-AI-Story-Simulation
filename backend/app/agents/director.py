@@ -40,6 +40,22 @@ async def director_node(state: OrchestratorState) -> OrchestratorState:
 
     other_candidates = [aid for aid in agent_ids if aid != last_speaker]
 
+    # A directly named character should always get first right of reply. This
+    # avoids asking the director model to guess when the speaker made it clear.
+    if other_candidates:
+        recent_line = next(
+            (
+                line.split(":", 1)[1].strip()
+                for line in reversed(state.chat_history)
+                if ":" in line and line.split(":", 1)[0].strip() == last_speaker
+            ),
+            "",
+        ).lower()
+        for candidate in other_candidates:
+            if candidate.lower() in recent_line:
+                state.next_speaker = candidate
+                return state
+
     # LLM-guided selection only for 3+ agents (round-robin is fine for 2)
     if len(agent_ids) > 2 and other_candidates:
         try:

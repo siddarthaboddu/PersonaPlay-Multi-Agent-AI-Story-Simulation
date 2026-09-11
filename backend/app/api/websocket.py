@@ -50,6 +50,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await manager.connect(websocket)
     try:
         await websocket.send_json({"type": "state_update", "status": "connected"})
+        from app.models.payloads import GetStatePayload
+        await handle_get_state(manager, sim, GetStatePayload(type="get_state"), websocket)
 
         async for raw in websocket.iter_text():
             try:

@@ -65,18 +65,25 @@ async def test_handle_manual_dialogue_updates_history_and_next_speaker():
         trigger_response=False,
     )
 
-    with patch("app.services.memory.add_memory", new_callable=AsyncMock) as mock_memory:
+    def close_scheduled(coro):
+        coro.close()
+
+    with patch("app.services.memory.add_memory", new_callable=AsyncMock) as mock_memory, \
+         patch("app.api.handlers.director.asyncio.create_task", side_effect=close_scheduled) as mock_create_task:
         await handle_manual_dialogue(mock_manager, mock_sim, payload)
 
     assert mock_sim.state.chat_history[-1] == "Maya: I have a confession to make."
     assert mock_sim.state.scene.turn_count == 6
     assert mock_sim.state.next_speaker == "Leo"
+    assert mock_sim.state.manual_reply_speaker == "Maya"
+    assert mock_sim.state.manual_reply_content == "I have a confession to make."
     assert maya.last_emote == "💬"
 
-    # Verify memory was recorded
-    mock_memory.assert_awaited_once_with(
+    # Verify persistence is scheduled without delaying the reply path.
+    mock_memory.assert_called_once_with(
         "Maya", "Maya: I have a confession to make.", memory_type="observation", turn=6
     )
+    mock_create_task.assert_called_once()
 
     # Verify broadcast of dialogue event
     broadcast_types = [c.args[0]["type"] for c in mock_manager.broadcast.call_args_list]

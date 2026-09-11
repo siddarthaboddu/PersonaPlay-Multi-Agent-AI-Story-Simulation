@@ -21,6 +21,8 @@ async def handle_start_scene(
     async with sim.lock:
         sim.cancel_task()
         await clear_memories()
+        from app.agents.llm import reset_summary_cache
+        reset_summary_cache()
         
         # Session Reset (preserves current Blueprint: scene metadata + agent roster)
         sim.state.scene.turn_count = 0
@@ -120,6 +122,7 @@ async def handle_get_state(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": sim.state.scene.turn_count,
+            "phases_enabled": getattr(sim.state.scene, "phases_enabled", False),
         },
     })
 

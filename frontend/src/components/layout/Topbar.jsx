@@ -104,33 +104,35 @@ export function Topbar({ onOpenConfig }) {
         <button
           onClick={() => togglePhases(!phasesEnabled)}
           title={phasesEnabled 
-            ? "Dramatic Phases Active: Click to switch to Direct Casual Conversation (no scripted phases)" 
-            : "Direct Conversation Active: Click to enable Dramatic 20-Phase Arc"}
+            ? "Dramatic Phases Active: Click to switch to Human Realism Mode (Natural, unscripted conversation)" 
+            : "Human Realism Mode Active: Click to enable 20-Phase Dramatic Arc"}
           style={{ 
             fontSize: '11px', 
             color: phasesEnabled ? 'var(--amber)' : '#38bdf8', 
-            background: phasesEnabled ? 'rgba(245,166,35,0.08)' : 'rgba(56,189,248,0.1)', 
-            border: `1px solid ${phasesEnabled ? 'rgba(245,166,35,0.25)' : 'rgba(56,189,248,0.35)'}`, 
-            padding: '3px 10px', 
+            background: phasesEnabled ? 'rgba(245,166,35,0.08)' : 'rgba(56,189,248,0.12)', 
+            border: `1px solid ${phasesEnabled ? 'rgba(245,166,35,0.3)' : 'rgba(56,189,248,0.45)'}`, 
+            padding: '4px 10px', 
             borderRadius: '12px', 
-            fontWeight: 700,
+            fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
+            boxShadow: phasesEnabled ? 'none' : '0 0 10px rgba(56,189,248,0.15)',
           }}
         >
           {phasesEnabled ? (
             <>
-              <span style={{ opacity: 0.6, textTransform: 'uppercase', fontSize: '9px' }}>Phase</span>
+              <span style={{ opacity: 0.7, textTransform: 'uppercase', fontSize: '9px' }}>Phase</span>
               <span>{currentBeat ? currentBeat[2] : 'COLD OPEN'}</span>
-              <span style={{ opacity: 0.45, fontSize: '9px', marginLeft: 2 }} title="Click to toggle Direct Convo">⇄ Direct</span>
+              <span style={{ opacity: 0.5, fontSize: '9px', marginLeft: 2 }} title="Click to switch to Human Realism Mode">⇄ Human Mode</span>
             </>
           ) : (
             <>
-              <span>💬 Direct Convo</span>
-              <span style={{ opacity: 0.45, fontSize: '9px', marginLeft: 2 }} title="Click to toggle Dramatic Phases">⇄ Phases</span>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
+              <span>👤 Human Mode: ON</span>
+              <span style={{ opacity: 0.5, fontSize: '9px', marginLeft: 2 }} title="Click to switch to Dramatic 20-Phase Arc">⇄ 20-Beat Arc</span>
             </>
           )}
         </button>

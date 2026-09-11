@@ -1,6 +1,8 @@
 """
 Director-facing handlers: inject chaos commands, rewind turns, export script.
 """
+import asyncio
+
 from app.api.connection import ConnectionManager, SimulationState
 from app.models.payloads import (
     DirectorCommandPayload,
@@ -96,11 +98,17 @@ async def handle_manual_dialogue(
         sim.cancel_task()
         sim.state.chat_history.append(clean_dialogue)
         sim.state.scene.turn_count += 1
+        # Preserve the exact user-authored line separately from normal history.
+        # actor.py uses it to force the next AI turn to be a reply, not a pivot.
+        sim.state.manual_reply_speaker = agent_id
+        sim.state.manual_reply_content = raw_text
 
         # Cycle speaker to another agent so the other character responds
         other_agents = [aid for aid in sim.state.agents.keys() if aid != agent_id]
         if other_agents:
             sim.state.next_speaker = other_agents[0]
+
+        print(f"\n[Manual Dialogue Entered]: '{clean_dialogue}' -> next AI speaker is '{sim.state.next_speaker}'", flush=True)
 
         # Update last emote on the speaking agent
         if agent_id in sim.state.agents:
@@ -108,9 +116,11 @@ async def handle_manual_dialogue(
 
         sim.push_history()
 
-    # Store memory
+    # Memory persistence must not hold up the visible line or its reply.
     from app.services.memory import add_memory
-    await add_memory(agent_id, clean_dialogue, memory_type="observation", turn=sim.state.scene.turn_count)
+    asyncio.create_task(
+        add_memory(agent_id, clean_dialogue, memory_type="observation", turn=sim.state.scene.turn_count)
+    )
 
     # Broadcast dialogue event
     await manager.broadcast({

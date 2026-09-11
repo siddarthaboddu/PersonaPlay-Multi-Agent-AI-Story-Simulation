@@ -11,14 +11,19 @@ export function ManualDialogueBar() {
   const [text, setText] = useState('')
   const [triggerResponse, setTriggerResponse] = useState(true)
 
+  // Default fallback so bar is always visible even prior to WS connection
+  const effectiveAgents = (agents && agents.length > 0)
+    ? agents
+    : [{ id: 'Maya' }, { id: 'Liam' }]
+
   // Default to first agent if none selected or agent list changes
   useEffect(() => {
-    if (agents && agents.length > 0) {
-      if (!selectedAgentId || !agents.some(a => a.id === selectedAgentId)) {
-        setSelectedAgentId(agents[0].id)
+    if (effectiveAgents.length > 0) {
+      if (!selectedAgentId || !effectiveAgents.some(a => a.id === selectedAgentId)) {
+        setSelectedAgentId(effectiveAgents[0].id)
       }
     }
-  }, [agents, selectedAgentId])
+  }, [effectiveAgents, selectedAgentId])
 
   const handleFocus = () => {
     // Automatically pause auto mode when user focuses the dialogue box to type
@@ -36,9 +41,7 @@ export function ManualDialogueBar() {
     setText('')
   }
 
-  if (!agents || agents.length === 0) return null
-
-  const selectedIdx = agents.findIndex(a => a.id === selectedAgentId)
+  const selectedIdx = effectiveAgents.findIndex(a => a.id === selectedAgentId)
   const currentColor = agentColor(selectedIdx >= 0 ? selectedIdx : 0)
 
   return (
@@ -58,7 +61,7 @@ export function ManualDialogueBar() {
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Speak as:
           </span>
-          {agents.map((a, idx) => {
+          {effectiveAgents.map((a, idx) => {
             const isSelected = a.id === selectedAgentId
             const color = agentColor(idx)
             return (

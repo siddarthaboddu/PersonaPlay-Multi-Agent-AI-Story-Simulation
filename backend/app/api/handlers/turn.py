@@ -21,6 +21,7 @@ async def handle_next_turn(
 ) -> None:
     async with sim.lock:
         if sim.current_task and not sim.current_task.done():
+            sim.pending_turn = True
             await manager.broadcast({
                 "type": "action",
                 "content": "[SYSTEM]: An AI turn is already in progress…",
@@ -56,6 +57,12 @@ async def handle_next_turn(
                 # 2. Update next_speaker and turn_count
                 sim.state.next_speaker = new_state.next_speaker
                 sim.state.scene.turn_count = new_state.scene.turn_count
+
+                # Manual-reply mode is consumed by this completed turn. Do not
+                # let a later autonomous turn inherit the user's old instruction.
+                if snap.manual_reply_content:
+                    sim.state.manual_reply_speaker = None
+                    sim.state.manual_reply_content = None
 
                 # 3. Merge Agent updates (emotions, relationships, etc.)
                 for aid, ag in new_state.agents.items():
@@ -192,6 +199,16 @@ async def handle_next_turn(
                     "type": "action",
                     "content": f"[ERROR]: AI Generation failed. Is LM Studio/OpenRouter running? {e}",
                 })
+            finally:
+                async with sim.lock:
+                    is_current = sim.current_task is asyncio.current_task()
+                    if is_current:
+                        sim.current_task = None
+                    run_queued_turn = is_current and sim.pending_turn
+                    if run_queued_turn:
+                        sim.pending_turn = False
+                if run_queued_turn:
+                    await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
 
         sim.current_task = asyncio.create_task(run_turn())
 

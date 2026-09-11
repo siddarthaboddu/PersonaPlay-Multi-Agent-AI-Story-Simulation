@@ -57,6 +57,7 @@ class SimulationState:
         self.state: OrchestratorState = initial_state.model_copy(deep=True)
         self.history: List[OrchestratorState] = []
         self.current_task: Optional[asyncio.Task] = None
+        self.pending_turn = False
         self.lock = asyncio.Lock()
 
     def snapshot(self) -> OrchestratorState:
@@ -101,6 +102,7 @@ class SimulationState:
 
         self.state = initial_state.model_copy(deep=True)
         self.history = []
+        self.pending_turn = False
 
         if preserve_agents:
             for agent_id, agent in saved_agents.items():
@@ -119,6 +121,7 @@ class SimulationState:
         if self.current_task and not self.current_task.done():
             self.current_task.cancel()
             self.current_task = None
+        self.pending_turn = False
 
 
 # Module-level singletons — shared across all WebSocket connections

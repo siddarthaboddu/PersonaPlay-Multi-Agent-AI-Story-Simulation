@@ -14,6 +14,14 @@ const PROVIDER_DEFAULTS = {
   google:      { base_url: '',                                   model_name: 'gemini-1.5-pro-latest' },
 }
 
+const parseRelationshipContext = (text = '') => Object.fromEntries(
+  text
+    .split('\n')
+    .map(line => line.split(/:(.*)/, 2))
+    .filter(([name, note]) => name.trim() && note?.trim())
+    .map(([name, note]) => [name.trim(), note.trim()])
+)
+
 const SAMPLE_YAML = `# PersonaPlay Blueprint: Casual Date Night
 scene:
   name: "Sunday Living Room: The Takeout Debate"
@@ -81,6 +89,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
               suspicion: a.emotions?.suspicion ?? 0.5
             },
             relationships: a.relationships || {},
+            relationship_context: a.relationship_context || {},
             llm_config: {
               provider: prov,
               model_name: a.llm_config?.model_name || 'local-model',
@@ -116,6 +125,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         hidden_agenda: a.hidden_agenda,
         emotions: a.emotions,
         relationships: a.relationships,
+        relationship_context: a.relationship_context,
         llm_config: a.llm_config
       }))
     }
@@ -146,6 +156,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         hidden_agenda: a.hidden_agenda,
         emotions: { ...a.emotions },
         relationships: a.relationships ? { ...a.relationships } : {},
+        relationship_context: a.relationship_context ? { ...a.relationship_context } : {},
         llm_config: {
           provider: existingLlm.provider || a.llm_config?.provider || 'lm_studio',
           model_name: existingLlm.model_name || a.llm_config?.model_name || 'local-model',
@@ -166,6 +177,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           hidden_agenda: a.hidden_agenda,
           emotions: a.emotions,
           relationships: a.relationships,
+          relationship_context: a.relationship_context,
           llm_config: {
             provider: existingLlm.provider || a.llm_config?.provider || 'lm_studio',
             model_name: existingLlm.model_name || a.llm_config?.model_name || 'local-model',
@@ -266,6 +278,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
       id: `Character_${agents.length + 1}`,
       traits: '',
       hidden_agenda: '',
+      relationship_context: {},
       emotions: { tension: 0.5, affection: 0.5, energy: 0.5, suspicion: 0.5 },
       llm_config: { ...DEFAULT_CONFIG },
     }])
@@ -486,6 +499,15 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                       rows={2}
                     />
                   </div>
+                  <div className="field-group">
+                    <label>🤝 Relationship Context</label>
+                    <textarea
+                      value={ag.relationship_context_text ?? Object.entries(ag.relationship_context || {}).map(([name, note]) => `${name}: ${note}`).join('\n')}
+                      onChange={(e) => mutate(i, 'relationship_context_text', e.target.value)}
+                      placeholder="Liam: Your longtime friend; teasing is normal, but honesty matters."
+                      rows={2}
+                    />
+                  </div>
                 </div>
 
                 <div className="emotion-grid">
@@ -561,7 +583,15 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           </div>
 
           <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-pri" onClick={() => onSave(agents, { sceneName, location, lighting, props })}>Save &amp; Apply</button>
+          <button className="btn-pri" onClick={() => onSave(
+            agents.map(agent => ({
+              ...agent,
+              relationship_context: parseRelationshipContext(
+                agent.relationship_context_text ?? Object.entries(agent.relationship_context || {}).map(([name, note]) => `${name}: ${note}`).join('\n')
+              ),
+            })),
+            { sceneName, location, lighting, props }
+          )}>Save &amp; Apply</button>
         </div>
       </div>
     </div>

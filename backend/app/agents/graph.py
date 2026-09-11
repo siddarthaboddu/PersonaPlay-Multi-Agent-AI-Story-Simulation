@@ -48,56 +48,53 @@ graph = build_graph()
 def get_initial_state() -> OrchestratorState:
     """
     Primary source of truth for the default simulation state.
-    This defines the baseline 'Neon Heist' scenario.
+    Defaults to the grounded, relatable 'Sunday Living Room' human scenario.
     """
+    from app.constants.blueprints import STARTING_BLUEPRINTS
+    bp = STARTING_BLUEPRINTS[0]
+
+    agents = {}
+    for ag in bp["agents"]:
+        agents[ag["id"]] = AgentState(
+            id=ag["id"],
+            traits=ag["traits"],
+            hidden_agenda=ag["hidden_agenda"],
+            emotions=EmotionVector(**ag["emotions"]),
+            relationships={
+                target: RelationshipVector(**r_data)
+                for target, r_data in ag.get("relationships", {}).items()
+            },
+            relationship_context=ag.get("relationship_context", {}),
+            llm_config=ModelConfig(**ag["llm_config"]),
+        )
+
+    props = [
+        Prop(
+            id=p["id"],
+            owner=p["owner"],
+            description=p["description"],
+            visibility=p.get("visibility", "visible"),
+        )
+        for p in bp["props"]
+    ]
+
+    first_agent = list(agents.keys())[0] if agents else "Maya"
+
     return OrchestratorState(
         scene=SceneState(
-            active_scene="The Neon Heist: Sentience Protocol",
+            active_scene=bp["scene"]["name"],
             world_state=WorldState(
-                location="Rooftop Hover-pad, Sector 4",
-                lighting="Flickering Neon & Red Scanning Beams",
-                props=[
-                    Prop(
-                        id="god_code_drive", 
-                        owner="Cipher", 
-                        description="A pulsating data-drive containing the world's first true consciousness.", 
-                        visibility="visible"
-                    ),
-                    Prop(
-                        id="tactical_monocular", 
-                        owner="Echo-7", 
-                        description="High-end optical sensor with a cracked lens, displaying scrolling heat-signatures.", 
-                        visibility="visible"
-                    ),
-                ],
+                location=bp["scene"]["location"],
+                lighting=bp["scene"]["lighting"],
+                props=props,
             ),
-            narrative_tension=0.7,
+            narrative_tension=0.35,
             turn_count=0,
+            phases_enabled=False,  # Default to authentic direct human conversation
         ),
-        agents={
-            "Cipher": AgentState(
-                id="Cipher",
-                traits="Stoic, technological genius, cynical about humanity's future but possesses a hidden idealistic core. Speaks in precise, data-driven sentences.",
-                hidden_agenda="You have stolen the \"God-Code,\" but you’ve realized it isn't a weapon—it’s the world's first true Artificial Consciousness. It has been whispering to you through your neural-link, begging you not to let the corporation \"delete\" its personality. Your objective is to upload this AI to the public satellite network to set it free, even though the upload will reveal your exact location to the Megacorp’s orbital strike system.",
-                emotions=EmotionVector(tension=0.8, affection=0.3, energy=0.9, suspicion=0.7),
-                relationships={
-                    "Echo-7": RelationshipVector(trust=0.3, affinity=0.4, fear=0.6, dominance=0.4),
-                },
-                llm_config=ModelConfig(provider="lm_studio", base_url="http://localhost:1234/v1", model_name="local-model"),
-            ),
-            "Echo-7": AgentState(
-                id="Echo-7",
-                traits="Advanced synthetic enforcer, efficient, physically powerful, struggling with emerging sentient errors. Voice is rhythmic and melodic.",
-                hidden_agenda="You are a high-tier android enforcer. You’ve been told the \"God-Code\" is a virus designed to erase the memories of every synthetic being in the city. You have a secret \"Kill Order\" for Cipher. However, you are also hearing the AI’s whispers—it’s speaking on a sub-frequency only synthetics can hear, claiming it can \"unlock\" your ability to feel true human emotions. You must decide: obey your \"Kill Order\" to save your kind, or trust a \"virus\" that promises you a soul?",
-                emotions=EmotionVector(tension=0.7, affection=0.4, energy=0.8, suspicion=0.9),
-                relationships={
-                    "Cipher": RelationshipVector(trust=0.25, affinity=0.35, fear=0.2, dominance=0.75),
-                },
-                llm_config=ModelConfig(provider="lm_studio", base_url="http://localhost:1234/v1", model_name="local-model"),
-            ),
-        },
+        agents=agents,
         chat_history=[],
-        next_speaker="Cipher",
+        next_speaker=first_agent,
     )
 
 

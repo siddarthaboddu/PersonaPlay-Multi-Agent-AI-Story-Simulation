@@ -31,3 +31,21 @@ def list_blueprints():
 def health_check():
     return {"status": "ok", "service": "PersonaPlay Pro"}
 
+
+@router.get("/state")
+def get_current_sim_state():
+    from app.api.connection import sim
+    return {
+        "chat_history": sim.state.chat_history,
+        "agents": {
+            k: {
+                "traits": v.traits,
+                "agenda": v.hidden_agenda,
+                "model": v.llm_config.model_dump(),
+            }
+            for k, v in sim.state.agents.items()
+        },
+        "turn_count": sim.state.scene.turn_count,
+        "next_speaker": sim.state.next_speaker,
+    }
+

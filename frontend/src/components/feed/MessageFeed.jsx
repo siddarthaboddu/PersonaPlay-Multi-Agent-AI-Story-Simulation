@@ -17,7 +17,6 @@ export function MessageFeed() {
     if (m.content) {
       if (
         m.content.includes('Triggering AI turn') ||
-        m.content.includes('already in progress') ||
         m.content.includes('Stage is set') ||
         m.content.includes('Ready — press ▶')
       ) {
