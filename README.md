@@ -22,6 +22,35 @@ Built with **FastAPI**, **LangGraph**, and **React**, it features a robust concu
 
 The system is separated into a decoupled frontend and backend, communicating exclusively over asynchronous WebSockets.
 
+```mermaid
+flowchart LR
+    User[Director / Player] --> UI[React + Vite frontend]
+    UI <-->|WebSocket messages and state events| WS[FastAPI WebSocket dispatcher]
+    UI -->|REST: beats, blueprints, health| API[FastAPI REST API]
+
+    WS --> CM[ConnectionManager]
+    WS --> H[Typed payload validation<br/>and command handlers]
+    H <--> S[SimulationState<br/>lock + turn queue]
+    S --> O[OrchestratorState<br/>scene, agents, history]
+
+    H --> G[LangGraph turn workflow]
+    G --> D[Director node<br/>selects next speaker]
+    D --> A[Actor node<br/>generates reply and state updates]
+    A --> L[LLM provider<br/>LM Studio, OpenRouter, or Google]
+    A <--> M[Episodic memory<br/>ChromaDB]
+
+    G --> S
+    S --> CM
+    CM -->|dialogue, world, vitals,<br/>and agent updates| UI
+```
+
+### Turn flow
+
+1. The frontend sends a typed WebSocket command, such as `next_turn`, a director action, or manual character dialogue.
+2. FastAPI validates and dispatches it to a handler. `SimulationState` serializes mutations with an async lock and queues overlapping turn requests.
+3. LangGraph runs `director → actor`: the director chooses a speaker, then the actor uses immediate dialogue, compact history, relationship state, and optional memory to produce a response.
+4. The handler merges the resulting state and broadcasts dialogue, world, vitals, and agent updates to every connected frontend.
+
 ### Backend (`/backend`)
 *   **Framework**: FastAPI, Uvicorn, LangChain, LangGraph.
 *   **State Management**: `app.models.state.OrchestratorState` acts as the single source of truth for the entire theater.
