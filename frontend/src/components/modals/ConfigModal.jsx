@@ -317,32 +317,22 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             </span>
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {STARTING_BLUEPRINTS.map(bp => (
-              <button
-                key={bp.id}
-                type="button"
-                onClick={() => handleSelectBlueprint(bp.id)}
-                title={bp.tagline}
-                style={{
-                  background: 'rgba(5, 7, 15, 0.65)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--r-pill)',
-                  padding: '5px 11px',
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-sans)',
-                  color: 'var(--t2)',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>{bp.title.split(' ')[0]}</span>
-                <span style={{ fontWeight: 700 }}>{bp.title.split(' ').slice(1, 3).join(' ')}</span>
-                <span style={{ opacity: 0.5, fontSize: '9.5px', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>({bp.genre.split(' ')[0]})</span>
-              </button>
-            ))}
+            {STARTING_BLUEPRINTS.map(bp => {
+              const isSelected = sceneName === bp.scene.name
+              return (
+                <button
+                  key={bp.id}
+                  type="button"
+                  onClick={() => handleSelectBlueprint(bp.id)}
+                  title={bp.tagline}
+                  className={`preset-pill ${isSelected ? 'active' : ''}`}
+                >
+                  <span>{bp.title.split(' ')[0]}</span>
+                  <span style={{ fontWeight: 700 }}>{bp.title.split(' ').slice(1, 3).join(' ')}</span>
+                  <span style={{ opacity: 0.5, fontSize: '9.5px', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>({bp.genre.split(' ')[0]})</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -445,7 +435,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             <div className="mtitle" style={{ marginTop: '20px', fontSize: '14px', opacity: 0.8 }}>👥 Actor Roster</div>
             
             {agents.map((ag, i) => (
-              <div key={i} className="ccard" style={{ padding: '16px' }}>
+              <div key={i} className="ccard" style={{ padding: '16px', borderLeftColor: agentColor(i) }}>
                 <div className="chead" style={{ marginBottom: '16px' }}>
                   <div style={{
                     width: 34, height: 34, borderRadius: '50%',
