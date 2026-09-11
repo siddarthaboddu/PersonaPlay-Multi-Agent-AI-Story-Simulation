@@ -1,149 +1,285 @@
-# 🎭 PersonaPlay: Multi-Agent AI Story Simulation
+# 🎭 PersonaPlay Pro: Multi-Agent AI Story & Conversational Simulation
 
-PersonaPlay is an advanced, multi-agent AI story simulation engine. It allows users to act as a "Director" overseeing a live scene where multiple AI actors driven by Large Language Models interact, think, and evolve in real time. 
+PersonaPlay Pro is an advanced, multi-agent AI theatrical and conversational simulation engine. It casts autonomous Large Language Model (LLM) agents into rich, dynamic scenarios where they inhabit distinct personas, harbor covert motives, form evolving interpersonal relationships, and improvise authentic spoken dialogue, physical actions, and inner thoughts within a live simulated environment.
 
-Built with **FastAPI**, **LangGraph**, and **React**, it features a robust concurrent WebSocket architecture, enabling instant director interventions (like injecting chaos or teleporting characters) without disrupting ongoing AI thought processes.
+A human participant can step into the simulation in two ways:
+1. **The Director**: Wielding god-mode powers to inject plot twists, whisper confidential in-ear directives to specific actors, adjust interpersonal tension, rewind turns, or retake lines.
+2. **The Actor (Direct Roleplay)**: Stepping into the shoes of any character on stage and speaking directly into the scene, engaging in real-time conversational back-and-forth with AI companions.
 
-![PersonaPlay UI](https://via.placeholder.com/1000x500.png?text=PersonaPlay+Pro+-+Multi-Agent+Theater+Engine)
+Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay features an asynchronous additive concurrency model ensuring human interventions merge seamlessly with background LLM generation without race conditions or overwriting user actions.
 
-## 🌟 Key Features
+---
 
-*   **🧠 Parallel Multi-Agent Intelligence**: Powered by LangGraph, all agents compute their internal monologues simultaneously before speaking, providing deep, subtext-driven dialogue.
-*   **🎬 Live Director Interventions**: Inject chaos, alter narrative tension, teleport the scene, or hand out props in real-time. State changes merge seamlessly with active LLM generations.
-*   **📡 Concurrent WebSocket Engine**: A highly optimized WebSocket dispatcher featuring `asyncio.Lock` state serialization and robust connection cleanup, preventing ghost connections and race conditions.
-*   **🎭 Emotional Vitals**: Real-time tracking of agent tension, energy, affection, and suspicion.
-*   **🔊 Text-to-Speech (TTS)**: Built-in Web Speech API integration voices the generated dialogue live.
-*   **💾 Episodic Memory**: AI actors maintain long-term context using vector-like memory retrieval to ensure continuity across long scenes.
-*   **📷 Generative Scene Imaging**: Optional integration for dynamically rendering scene backgrounds.
+## 🌟 Core Features & Innovations
+
+### 1. 👤 Human Realism Engine & Anti-Theatrical Overhaul
+- **Authentic Conversational Framing**: Eliminates artificial stage metaphors ("advance the plot", "live theater"). Characters act as real human beings having authentic, unscripted conversations in a shared space with no fourth wall.
+- **Natural Speech & Disfluencies**: Supports organic human speech patterns—hesitations, trailing off (`...`), self-corrections (*"Tuesday—wait, no, Wednesday"*), and realistic micro-actions in parentheses *(takes a sip)*, *(glances at phone)*.
+- **Dynamic Brevity**: Breaks free from mandatory multi-sentence monologues; characters can react naturally with short fragments (*"Wait, what?"*, *"Since when?"*, *"Yeah, I guess."*) or full explanations depending on emotional intensity.
+
+### 2. 🎯 Conversational Anchoring & Anti-Deflection Engine
+- **Immediate Conversational Focus**: High-priority prompt anchoring ensures characters directly address the exact last statement or action made by their conversation partner instead of forcing their own hidden agendas.
+- **Strict Anti-Deflection Rules**: Prohibits models from dodging direct confessions, questions, or dramatic statements by offering tea, water, snacks, or changing the subject.
+- **Lexical Relevance Repair**: If a generated reply fails to acknowledge the user's manual input, the engine triggers a targeted rewrite pass to maintain conversational continuity.
+
+### 3. ⚡ Single-Pass Unified Generation (~2–3s Turn Latency)
+- **Autoregressive Thought-Then-Dialogue**: In a single prompt pass, the LLM first generates its private gut thought (`thought`) followed immediately by its spoken line (`dialogue`), conditioning spoken words on internal psychology.
+- **Zero Phantom Monologue Waste**: Eliminates redundant background monologue calls for idle actors, cutting turn latency by over 60% compared to legacy multi-pass pipelines.
+- **Cached Rolling History Compression**: Periodic prefix-scoped summarization replaces per-turn history re-summarization, drastically reducing prompt token bloat and preventing hallucinated narrative drift.
+
+### 4. 💬 Manual Character Dialogue & Interactive Roleplay
+- **Always-Visible Dialogue Bar**: Docked at the bottom of the theater panel, allowing the user to select any character on stage and speak as them.
+- **Strict Turn Alternation Guarantee**: Entering dialogue as Character A strictly routes the next AI turn to Character B, guaranteeing natural back-and-forth roleplay.
+- **Focus-to-Pause Safety**: Clicking into the dialogue input immediately halts automated turn progression, preventing the simulation from advancing over the user while typing.
+- **Background Memory Persistence**: User dialogue is dispatched and acknowledged immediately before vector-store indexing finishes in the background.
+
+### 5. 🤫 Director Secret Whispering (In-Ear Coaching)
+- **Targeted Subtext Directives**: Privately whisper coaching instructions to a specific actor (*"Play along, then double-cross"*, *"Demand proof immediately"*, or custom guidance).
+- **Dual-Tier Subtext Injection**: Injected into the targeted actor's private thoughts and dialogue generation prompts, auto-clearing after the turn to prevent repetitive instruction loops.
+
+### 6. 🌐 Pairwise Character Relationship Matrix
+- **4-Axis Interpersonal Dynamics**: Tracks directed stance from Character A toward Character B across `trust` (0–1), `affinity` (0–1), `fear` (0–1), and `dominance` (0–1).
+- **Qualitative Social Context**: Retains qualitative backstory and nuances (`relationship_context`) such as *"Longtime friend; teasing is normal, but honesty matters"*.
+- **Live Dynamic Drift & Director Override**: Stances shift naturally based on dialogue sentiment and can be manually adjusted via sliders in the Backstage panel.
+
+### 7. 💡 Two-Tier Episodic Memory & Reflection Engine
+- **ChromaDB Vector Store**: Combines verbatim episodic quotes (`observation`) with synthesized deductions (`reflection`) using HuggingFace sentence embeddings.
+- **Background Deduction Synthesis**: Periodically synthesizes tactical deductions and character beliefs every 4 turns or during dramatic high-tension beats, surfacing them in the Backstage panel and injecting them into character context.
+
+### 8. 🎭 Narrative Modes: 20-Beat Arc vs. Unscripted Human Mode
+- **👤 Human Mode (Direct Convo)**: Unscripted, natural conversations without forced climaxes or artificial escalation.
+- **🎭 20-Beat Dramatic Arc**: Guided dramatic structure evolving across five acts (Cold Open $\rightarrow$ First Friction $\rightarrow$ Revelation $\rightarrow$ Crisis Point $\rightarrow$ Climax $\rightarrow$ Epilogue).
+- **1-Click Switching**: Toggle seamlessly at any time from the Topbar or Director console.
+
+### 9. 🛋️ Grounded Scenario Presets & YAML Blueprints
+- Includes 6 rich slice-of-life starting scenarios:
+  1. 🛋️ **Sunday Living Room: The Takeout Debate** (*Default* — Maya & Liam debating Thai food vs. mac-and-cheese).
+  2. 📦 **First Apartment: Unpacking & Cold Pizza** (Chloe & Sam assembling flat-pack furniture).
+  3. 🥞 **2 AM Kitchen: The Midnight Pancake Raid** (Leo & Zoe navigating a mutual slow-burn crush).
+  4. ☕ **Corner Cafe: Study Break & Spilled Tea** (Hannah & Lucas sharing study notes and campus gossip).
+  5. 🚗 **Road Trip: Lost Highway & Aux Cord War** (Emma & Noah stranded on a scenic highway).
+  6. 🎮 **Couch Co-Op: The Dish-Duty Rematch** (Mia & Julian in a split-screen kart showdown).
+- Complete Blueprint Editor with preset pills, collapsible props, and full YAML import/export.
+
+### 10. 🏃 Automated Turn Mode & Adaptive Pacing
+- **Cadence Presets**: Run continuous auto-play with ⚡ **Fast (2.0s)**, 🎬 **Normal (3.5s)**, or ☕ **Relaxed (5.0s)** turn intervals.
+- **Live Countdown Chip**: Displays active turn countdowns with generation state notifications (`⏳ Thinking…`).
+
+### 11. 🎲 Director Retake / Re-roll
+- 1-click re-roll for the latest dialogue turn (`🎲 Retake`) directly from the Topbar or inline dialogue bubble, restoring the previous snapshot and generating an alternate response.
+
+### 12. 🔮 2.5D Avatars, Emote Bubbles & Atmospheric Lighting
+- Avatars feature animated overhead emote bubbles (💭, 💡, 💖, ⚡, 🤫, ☕) reflecting current emotions, secrets, or reactions.
+- Floor glow and stage spotlight colors shift dynamically with scene tension (calm cyan $\rightarrow$ electric violet $\rightarrow$ high-tension crimson).
 
 ---
 
 ## 🏗 Architecture Overview
 
-The system is separated into a decoupled frontend and backend, communicating exclusively over asynchronous WebSockets.
-
 ```mermaid
 flowchart LR
-    User[Director / Player] --> UI[React + Vite frontend]
-    UI <-->|WebSocket messages and state events| WS[FastAPI WebSocket dispatcher]
-    UI -->|REST: beats, blueprints, health| API[FastAPI REST API]
+    User[Director / Roleplayer] --> UI[React 19 + Vite Frontend]
+    UI <-->|WebSocket: /ws| WS[FastAPI WebSocket Dispatcher]
+    UI -->|REST: /api/blueprints, /api/beats, /api/health| API[FastAPI REST API]
 
     WS --> CM[ConnectionManager]
-    WS --> H[Typed payload validation<br/>and command handlers]
-    H <--> S[SimulationState<br/>lock + turn queue]
-    S --> O[OrchestratorState<br/>scene, agents, history]
+    WS --> H[Typed Inbound/Outbound Handlers]
+    H <--> S[SimulationState: Lock + Snapshotting + History]
+    S --> O[OrchestratorState: Scene, Agents, Props, Chat History]
 
-    H --> G[LangGraph turn workflow]
-    G --> D[Director node<br/>selects next speaker]
-    D --> A[Actor node<br/>generates reply and state updates]
-    A --> L[LLM provider<br/>LM Studio, OpenRouter, or Google]
-    A <--> M[Episodic memory<br/>ChromaDB]
+    H --> G[LangGraph Pipeline]
+    G --> D[Director Node: Turn Advancement & Speaker Routing]
+    D --> A[Actor Node: Unified Thought + Dialogue]
+    A --> L[LLM Factory: Local LM Studio / OpenRouter / Gemini]
+    A <--> M[Episodic Memory Service: ChromaDB + HF Embeddings]
+    A -.-> R[Background Reflection Engine]
 
     G --> S
     S --> CM
-    CM -->|dialogue, world, vitals,<br/>and agent updates| UI
+    CM -->|Broadcast: dialogue, vitals, agents, thoughts| UI
 ```
 
-### Turn flow
-
-1. The frontend sends a typed WebSocket command, such as `next_turn`, a director action, or manual character dialogue.
-2. FastAPI validates and dispatches it to a handler. `SimulationState` serializes mutations with an async lock and queues overlapping turn requests.
-3. LangGraph runs `director → actor`: the director chooses a speaker, then the actor uses immediate dialogue, compact history, relationship state, and optional memory to produce a response.
-4. The handler merges the resulting state and broadcasts dialogue, world, vitals, and agent updates to every connected frontend.
-
-### Backend (`/backend`)
-*   **Framework**: FastAPI, Uvicorn, LangChain, LangGraph.
-*   **State Management**: `app.models.state.OrchestratorState` acts as the single source of truth for the entire theater.
-*   **Concurrency**: Handled via `SimulationState.lock` to ensure that Director actions (which mutate state instantly) gracefully merge with LangGraph iterations via an **additive state merge strategy**.
-*   **Message Validation**: Pydantic `RootModel` ensures strict type-checking on all inbound and outbound payload formats.
-
-### Frontend (`/frontend`)
-*   **Framework**: React (Vite) + Vanilla CSS.
-*   **Layout**: A complex, three-panel dashboard:
-    *   **Theater Panel**: Visualizes the world state, current actors, and the dialogue feed.
-    *   **Director Panel**: Allows for manual scene manipulation, prop management, and narrative tension sliding.
-    *   **Backstage Panel**: Exposes the hidden internal monologues and emotional sliders of the actors.
-*   **Hooks**: `useWebSocket` strictly manages the connection lifecycle (resilient against React StrictMode unmounts), while `useSimulation` handles global app state.
+### Turn Lifecycle & State Merge
+1. **Turn Request**: Triggered via `next_turn`, automated timer, or manual character dialogue.
+2. **Snapshotting**: `sim.snapshot()` creates an immutable deep copy of orchestrator state.
+3. **Execution**: The turn runs in a non-blocking background task while `SimulationState.lock` protects live state for instant director actions.
+4. **Additive Merge**: Generated dialogue lines, emotion drifts, and prop changes are merged back into `sim.state` without clobbering director interventions that occurred during LLM generation.
+5. **Broadcast**: Connected clients receive typed updates (`dialogue`, `agents_update`, `vitals_update`, `monologue`, `insight_update`).
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start & Installation
 
 ### Prerequisites
-*   Node.js (v18+)
-*   Python (3.11+)
-*   An API Key for an OpenAI-compatible LLM provider (e.g., OpenRouter, OpenAI) or a local provider like LM Studio.
+- **Node.js**: v18+ (Node 20+ recommended)
+- **Python**: 3.11+
+- **LLM Provider**:
+  - **Local**: [LM Studio](https://lmstudio.ai/) running a local server on `http://localhost:1234/v1` (e.g. Qwen 2.5, Llama 3, Mistral).
+  - **Cloud**: [OpenRouter](https://openrouter.ai/) API key or [Google Gemini](https://ai.google.dev/) API key.
+
+---
 
 ### 1. Backend Setup
 
 ```bash
 cd backend
 
-# Create a virtual environment
+# Create and activate virtual environment
+# Windows (PowerShell):
+python -m venv venv
+.\venv\Scripts\activate
+
+# Linux / macOS:
 python3 -m venv venv
 source venv/bin/activate
 
-# Install dependencies (assuming you have a requirements.txt or use poetry/pip)
-pip install -r requirements.txt
-# Alternatively: pip install fastapi uvicorn langchain langgraph pydantic
+# Install backend package with dependencies
+pip install -e .
 
-# Start the server
-uvicorn app.main:app --reload
+# (Optional) Configure environment variables in backend/.env:
+# OPENROUTER_API_KEY=your_key_here
+# GOOGLE_API_KEY=your_key_here
+# LM_STUDIO_BASE_URL=http://localhost:1234/v1
+
+# Start FastAPI backend
+uvicorn app.main:app --reload --port 8000
 ```
+Backend runs on `http://localhost:8000` (API docs at `http://localhost:8000/docs`).
+
+---
 
 ### 2. Frontend Setup
 
 ```bash
 cd frontend
 
-# Install dependencies
+# Install Node dependencies
 npm install
 
-# Start the development server
+# Start Vite development server
 npm run dev
 ```
-
-### 3. Configuration & Running
-1. Open the UI at `http://localhost:5173`.
-2. Click the **Configure (⚙️)** button in the top right.
-3. Add your actors (e.g., *Cipher* and *Echo-7*), setting their specific Hidden Agendas and API URLs (e.g., `https://openrouter.ai/api/v1`).
-4. Click **Connect & Start** to initialize the WebSocket connection.
-5. Hit **Next Turn** (or enable Auto-Play) to watch the AI actors perform!
+Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🛠 Advanced Configuration
+## 📖 Step-by-Step How-To Guide
 
-### Environment Variables
-While most configuration happens in the UI, you can configure backend defaults by creating a `.env` in the `/backend` folder:
+### 1. Starting a Scene & Choosing a Scenario
+1. Launch both the backend and frontend. The app defaults to **"Sunday Living Room: The Takeout Debate"** with Maya and Liam in **Human Mode**.
+2. To choose a different scenario, click **⚙️ Configure** in the top right.
+3. In the **Scenario Presets** bar, click any scenario pill (e.g., 🥞 *2 AM Kitchen: The Midnight Pancake Raid* or 📦 *First Apartment*).
+4. Review or edit character traits, hidden agendas, and model configurations, then click **Apply & Reset Scene**.
 
-```env
-OPENROUTER_API_KEY=your_key_here
-HISTORY_WINDOW_SIZE=10
-```
+### 2. Roleplaying as a Character (Manual Dialogue)
+1. Locate the **Manual Dialogue Bar** at the bottom of the center Theater panel.
+2. Select which character you want to speak as by clicking their name button (e.g., `Liam` or `Maya`).
+3. Type your line in the input box and press **Enter** (or click **Send**).
+   - *Tip*: Clicking the input box automatically pauses Auto-Play mode so characters won't talk over you while typing.
+4. Your line appears immediately in the chat feed with a **👤 Manual** badge.
+5. The other character on stage will immediately listen and generate a contextual response.
 
-### Scene Configuration
-Default scenes and beats can be authored in `backend/scenes/`. You can define custom locations, props, and narrative structures via YAML.
+### 3. Whispering In-Ear Directives to Characters
+1. In the left **Director Panel**, locate the **✨ Direct the Scene** console.
+2. Under the **Target** dropdown, switch from `Entire Stage` to the specific actor you want to coach (e.g., `Maya`).
+3. Type a private coaching command or click one of the quick tactical presets (*"Ask about their hidden past"*, *"Demand proof immediately"*, *"Play along, then double-cross"*).
+4. Click **Inject Directive**.
+5. The target character will receive the whisper in their private ear. Check the **Backstage Panel** $\rightarrow$ **💭 Psychology** tab to see how they interpret your coaching in their inner thoughts!
+
+### 4. Directing Narrative Chaos & Scene Twists
+1. In the **Director Panel**, ensure the **Target** is set to `Entire Stage`.
+2. Click any of the chaos idea pills (e.g., `Power Outage`, `Sudden Confession`, `Knock at the Door`, `Urgent Message`) or write a custom event.
+3. Click **Inject Directive**.
+4. The event is announced on stage, and the next speaker will react to the unexpected twist immediately.
+
+### 5. Switching Between Human Mode and 20-Beat Arc
+- In the **Topbar**, look at the mode pill:
+  - Click `👤 Human Mode: ON` to switch to `🎭 Phase: COLD OPEN` (20-Beat Dramatic Arc).
+  - Click `🎭 Phase: ...` to switch back to unscripted `👤 Human Mode`.
+- You can also toggle this mode from the **Director Panel** using the Narrative Mode card.
+
+### 6. Using Auto-Play & Adjusting Pacing
+- In the Topbar, click **⚪ Auto: OFF** to toggle it to **🟢 Auto: ON**.
+- The countdown chip will tick down between turns and advance the story automatically.
+- To adjust the delay between turns, go to the **Director Panel** and choose:
+  - ⚡ **Fast (2.0s)**: Rapid banter.
+  - 🎬 **Normal (3.5s)**: Standard dramatic timing.
+  - ☕ **Relaxed (5.0s)**: Casual slow-burn conversation.
+- Click **⏸ Pause** in the Topbar or above the dialogue input at any time to freeze the simulation.
+
+### 7. Retaking or Re-rolling a Turn
+- If an AI character says something you'd like to see generated differently:
+  - Click the **🎲 Retake** button in the Topbar, OR
+  - Hover over the latest dialogue bubble in the chat feed and click **🎲 Retake Line**.
+- The simulation rewinds that single turn and generates a fresh reply.
+
+### 8. Inspecting Backstage Psychology & Relationships
+Open the right **Backstage Panel**:
+- **💭 Psychology Tab**:
+  - View real-time inner thoughts generated by characters before they speak.
+  - View **💡 Synthesized Insights**—the strategic deductions and beliefs formed by characters as events unfold.
+- **⚡ Dynamics & Relations Tab**:
+  - View emotional vitals (Tension, Energy, Affection, Suspicion).
+  - Inspect the **Pairwise Relationship Matrix** (Trust, Affinity, Fear, Dominance) between all characters on stage.
+  - Adjust sliders in real time to artificially spark jealousy, fear, or reconciliation.
+
+---
+
+## ⚙️ Model & Provider Configuration
+
+Each character can be powered by an independent model provider. Configure these in the **⚙️ Configure** modal or via YAML:
+
+### Local LM Studio
+- **Provider**: `lm_studio`
+- **Base URL**: `http://localhost:1234/v1`
+- **Model Name**: Model identifier loaded in LM Studio (e.g., `qwen2.5-7b-instruct`, `llama-3.2-3b-instruct`).
+- **API Key**: Not required (or leave blank).
+
+### OpenRouter
+- **Provider**: `openrouter`
+- **Base URL**: `https://openrouter.ai/api/v1`
+- **Model Name**: OpenRouter model string (e.g., `anthropic/claude-3.5-sonnet`, `meta-llama/llama-3.3-70b-instruct`, `mistralai/mistral-small`).
+- **API Key**: Your OpenRouter API key (can also be specified in `backend/.env` as `OPENROUTER_API_KEY`).
+
+### Google Gemini
+- **Provider**: `google`
+- **Model Name**: Gemini model string (e.g., `gemini-1.5-flash`, `gemini-2.0-flash`).
+- **API Key**: Your Google AI Studio key (can also be specified in `backend/.env` as `GOOGLE_API_KEY`).
 
 ---
 
 ## 🧪 Testing
 
-The backend comes with a comprehensive `pytest` suite covering payload validation, memory retrieval, and agent logic.
+The backend includes a comprehensive `pytest` suite testing all components:
 
 ```bash
 cd backend
-python -m pytest
+
+# Run the complete test suite
+pytest
+
+# Run tests with verbose output
+pytest -v
 ```
+
+**Test Coverage Areas:**
+- `test_beats.py`: Narrative beat map contiguous turn coverage and JSON serialization.
+- `test_blueprints.py`: Scenario catalog schemas, character attributes, and REST endpoint outputs.
+- `test_models.py`: Pydantic state models, deep copy immutability, and payload validation.
+- `test_manual_dialogue.py`: User manual dialogue parsing, state synchronization, speaker cycle alternation, and background memory dispatch.
+- `test_reflection.py`: Two-tier memory partitioning, reflection generation, and prefix stripping.
+- `test_relationships.py`: Pairwise relationship metrics, subtext prompt generation, and dynamic drift.
+- `test_retake.py`: 1-click turn rewind/retake, snapshot rollback, and history synchronization.
+- `test_whisper.py`: Director whisper injection, prompt formatting, and single-turn consumption.
+- `test_image_service.py`: World state prompt generation and deterministic seed generation.
 
 ---
 
-## 🤝 Contributing
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: amazing new feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## 📚 Living Documentation
+
+For detailed architectural specifications, maintenance rules, and the complete chronological engineering log, refer to [`context.md`](./context.md).
+
+---
 
 ## 📄 License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for details.
