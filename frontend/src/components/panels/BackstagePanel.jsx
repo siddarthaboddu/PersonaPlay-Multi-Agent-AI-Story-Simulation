@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { agentColor } from '../../utils/colors'
 
 export function BackstagePanel() {

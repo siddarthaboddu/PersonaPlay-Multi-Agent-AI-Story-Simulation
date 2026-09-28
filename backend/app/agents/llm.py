@@ -6,9 +6,7 @@ All sampling parameters live here — never scattered across node functions.
 """
 from __future__ import annotations
 
-import os
 import hashlib
-from typing import List
 
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -89,7 +87,7 @@ def reset_summary_cache() -> None:
     }
 
 
-async def compress_history(history: List[str], model) -> str:
+async def compress_history(history: list[str], model) -> str:
     """
     Compress old chat history into a compact narrative summary.
 
@@ -99,7 +97,7 @@ async def compress_history(history: List[str], model) -> str:
     as examples to copy.
     """
     recent_raw = settings.recent_raw_turns
-    dialogue_lines = [l for l in history if "'s Thought]:" not in l]
+    dialogue_lines = [line for line in history if "'s Thought]:" not in line]
 
     if len(dialogue_lines) <= recent_raw:
         return "\n".join(dialogue_lines[-12:])

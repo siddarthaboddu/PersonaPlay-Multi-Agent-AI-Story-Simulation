@@ -260,6 +260,9 @@ pytest
 
 # Run tests with verbose output
 pytest -v
+
+# Lint
+ruff check .
 ```
 
 **Test Coverage Areas:**
@@ -271,13 +274,24 @@ pytest -v
 - `test_relationships.py`: Pairwise relationship metrics, subtext prompt generation, and dynamic drift.
 - `test_retake.py`: 1-click turn rewind/retake, snapshot rollback, and history synchronization.
 - `test_whisper.py`: Director whisper injection, prompt formatting, and single-turn consumption.
+- `test_turn_merge.py`: **The turn-merge contract** — asserts that every field the actor node mutates (emote, `known_secrets`, emotions, identity fields) survives the copy from the graph's working state back into live state, and that a consumed whisper is not resurrected.
 - `test_image_service.py`: World state prompt generation and deterministic seed generation.
+
+> **Note on the turn merge.** `handle_next_turn` runs the LangGraph turn on a
+> deep copy of `OrchestratorState`. Any field the actor mutates but the merge
+> forgets to copy is *silently discarded*. This is easy to get wrong and it is
+> not caught by ordinary behavioural tests, so the field list is pinned by
+> `test_turn_merge.py`. If you add a mutable field to `AgentState`, add it to
+> that test.
 
 ---
 
 ## 📚 Living Documentation
 
-For detailed architectural specifications, maintenance rules, and the complete chronological engineering log, refer to [`context.md`](./context.md).
+The full architectural specification, maintenance rules, and chronological
+engineering log live in `context.md`. That file is a local working document and
+is intentionally **not** committed (see `.gitignore`), so it will not be present
+in a fresh clone. Use this `README.md` as the authoritative public reference.
 
 ---
 

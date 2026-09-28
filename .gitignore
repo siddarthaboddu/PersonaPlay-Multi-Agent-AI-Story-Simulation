@@ -1,5 +1,28 @@
-# Ignore the design documentation folder
+# Local design documentation (not committed — these are personal working notes)
 design doc/
-
-# Context documentation
 context.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+chroma_db/
+*.db
+
+# Secrets — copy backend/.env.example to backend/.env
+.env
+backend/.env
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

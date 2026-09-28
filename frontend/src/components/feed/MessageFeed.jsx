@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { MessageItem } from './MessageItem'
 
 export function MessageFeed() {

@@ -20,8 +20,11 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
+        # No authentication in this app, so there are no cookies to protect and
+        # allow_credentials must stay False. The CORS spec forbids pairing a
+        # wildcard origin with credentials, and browsers reject that response.
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSimulationContext } from './context/SimulationContext'
+import { useSimulationContext } from './context/useSimulationContext'
 import { Topbar } from './components/layout/Topbar'
 import { DirectorPanel } from './components/panels/DirectorPanel'
 import { TheaterPanel } from './components/panels/TheaterPanel'
@@ -16,7 +16,10 @@ export default function App() {
 
   return (
     <div className="shell">
-      <ConfigModal 
+      {/* `key` forces a remount each time the modal opens, so ConfigModal's
+          lazy useState initializers re-seed from the current scene/agents. */}
+      <ConfigModal
+        key={cfgOpen ? 'open' : 'closed'}
         isOpen={cfgOpen} 
         onClose={() => setCfgOpen(false)}
         currentScene={{ active_scene: vitals.scene_name, world_state: world }}

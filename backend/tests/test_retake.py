@@ -1,7 +1,7 @@
 """Unit tests for Director Retake / Re-roll Turn functionality."""
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from pydantic import ValidationError
 
 from app.api.handlers.turn import handle_retake_turn
 from app.models.payloads import InboundPayload, RetakeTurnPayload

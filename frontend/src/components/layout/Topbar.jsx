@@ -1,10 +1,11 @@
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 
 export function Topbar({ onOpenConfig }) {
   const { 
     isConnected,    startScene, 
     nextTurn, 
     retakeTurn,
+    stopScene,
     auto, 
     setAuto, 
     pause,
@@ -96,6 +97,26 @@ export function Topbar({ onOpenConfig }) {
             }}
           >
             <span>⏸ Pause</span>
+          </button>
+        )}
+
+        {/* Hard stop: cancels the in-flight turn and halts all automation. */}
+        {(isProcessing || auto) && (
+          <button
+            className="cb"
+            onClick={stopScene}
+            title="Forcibly stop the running turn and halt auto-play"
+            style={{
+              background: 'rgba(248, 113, 113, 0.15)',
+              borderColor: 'rgba(248, 113, 113, 0.4)',
+              color: 'var(--red)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>🛑 Stop</span>
           </button>
         )}
       </div>

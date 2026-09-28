@@ -1,4 +1,4 @@
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { agentColor } from '../../utils/colors'
 
 // Helper to format parenthetical micro-actions in dialogue like a professional screenplay
@@ -129,7 +129,10 @@ export function MessageItem({ message, isLatest, onRetake, isProcessing }) {
   const isDir = message.content?.includes('[DIRECTOR')
   const isGossip = message.content?.includes('[GOSSIP')
   const isScn = message.content?.includes('[SCENE CHANGE')
-  const isErr = message.content?.includes('[ERROR')
+  // The backend surfaces failures two ways: as an `action` line whose content is
+  // prefixed "[ERROR]:", and as a dedicated `{"type": "error"}` payload. Match
+  // both, otherwise failures render as ordinary system text.
+  const isErr = message.type === 'error' || /\[ERROR\]/.test(message.content ?? '')
   
   if (isDir) {
     const text = message.content.replace(/^\[DIRECTOR[^\]]*\]:\s*/, '')

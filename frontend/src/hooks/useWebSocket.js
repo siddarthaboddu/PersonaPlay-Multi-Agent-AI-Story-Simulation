@@ -27,6 +27,8 @@ export function useWebSocket() {
     if (wildcards) wildcards.forEach((h) => h(data))
   }, [])
 
+  const connectRef = useRef(null)
+
   const connect = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return
 
@@ -50,17 +52,25 @@ export function useWebSocket() {
     sock.onclose = () => {
       setIsConnected(false)
       wsRef.current = null
-      // Exponential backoff: 1s, 2s, 4s … capped at 30s
+      // Exponential backoff: 1s, 2s, 4s … capped at 30s.
+      // Reconnect through connectRef, not `connect` — referencing the
+      // useCallback binding directly here would capture a stale closure.
       const delay = Math.min(1000 * 2 ** retryCount.current, MAX_RETRY_DELAY_MS)
       retryCount.current++
       console.log(`[WS] Reconnecting in ${delay}ms (attempt ${retryCount.current})…`)
-      retryTimer.current = setTimeout(connect, delay)
+      retryTimer.current = setTimeout(() => connectRef.current?.(), delay)
     }
 
     sock.onerror = () => {
       sock.close()
     }
   }, [dispatch])
+
+  // Point the ref at the latest `connect` after commit, so the retry timer
+  // always invokes the current implementation without a stale closure.
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
 
   useEffect(() => {
     connect()

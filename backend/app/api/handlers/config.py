@@ -114,6 +114,7 @@ async def handle_check_model(
 ) -> None:
     try:
         from langchain_core.messages import HumanMessage
+
         from app.agents.llm import get_model
 
         config = ModelConfig(**payload.llm_config)

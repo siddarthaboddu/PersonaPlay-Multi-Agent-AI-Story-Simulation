@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 
 export function DirectorPanel() {
   const { 

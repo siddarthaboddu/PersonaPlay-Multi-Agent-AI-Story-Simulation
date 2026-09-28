@@ -1,29 +1,31 @@
-import { useState, useEffect } from 'react'
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useMemo, useState } from 'react'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { agentColor } from '../../utils/colors'
 
+const FALLBACK_AGENTS = [{ id: 'Maya' }, { id: 'Liam' }]
+
 export function ManualDialogueBar() {
-  const { 
-    agents, sendManualDialogue, isProcessing, 
-    auto, setAuto, pause 
+  const {
+    agents, sendManualDialogue, isProcessing,
+    auto, pause
   } = useSimulationContext()
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [text, setText] = useState('')
   const [triggerResponse, setTriggerResponse] = useState(true)
 
-  // Default fallback so bar is always visible even prior to WS connection
-  const effectiveAgents = (agents && agents.length > 0)
-    ? agents
-    : [{ id: 'Maya' }, { id: 'Liam' }]
+  // Default fallback so bar is always visible even prior to WS connection.
+  // Memoized so its identity is stable across renders.
+  const effectiveAgents = useMemo(
+    () => (agents && agents.length > 0 ? agents : FALLBACK_AGENTS),
+    [agents]
+  )
 
-  // Default to first agent if none selected or agent list changes
-  useEffect(() => {
-    if (effectiveAgents.length > 0) {
-      if (!selectedAgentId || !effectiveAgents.some(a => a.id === selectedAgentId)) {
-        setSelectedAgentId(effectiveAgents[0].id)
-      }
-    }
-  }, [effectiveAgents, selectedAgentId])
+  // Derived, not stored: fall back to the first agent whenever the selection is
+  // empty or no longer part of the roster. This replaces a setState-in-effect
+  // that caused an extra render pass on every agent list change.
+  const activeAgentId = effectiveAgents.some(a => a.id === selectedAgentId)
+    ? selectedAgentId
+    : (effectiveAgents[0]?.id ?? '')
 
   const handleFocus = () => {
     // Automatically pause auto mode when user focuses the dialogue box to type
@@ -35,13 +37,13 @@ export function ManualDialogueBar() {
   const handleSubmit = (e) => {
     e?.preventDefault()
     const content = text.trim()
-    if (!content || !selectedAgentId || isProcessing) return
+    if (!content || !activeAgentId || isProcessing) return
 
-    sendManualDialogue(selectedAgentId, content, triggerResponse)
+    sendManualDialogue(activeAgentId, content, triggerResponse)
     setText('')
   }
 
-  const selectedIdx = effectiveAgents.findIndex(a => a.id === selectedAgentId)
+  const selectedIdx = effectiveAgents.findIndex(a => a.id === activeAgentId)
   const currentColor = agentColor(selectedIdx >= 0 ? selectedIdx : 0)
 
   return (
@@ -174,8 +176,8 @@ export function ManualDialogueBar() {
               isProcessing 
                 ? "Characters conversing…" 
                 : auto
-                ? `Auto running (click to pause & speak as ${selectedAgentId || 'character'})…`
-                : `Say something as ${selectedAgentId || 'character'}… (Press Enter to speak)`
+                ? `Auto running (click to pause & speak as ${activeAgentId || 'character'})…`
+                : `Say something as ${activeAgentId || 'character'}… (Press Enter to speak)`
             }
             style={{
               paddingLeft: '14px',
@@ -185,9 +187,9 @@ export function ManualDialogueBar() {
               fontSize: '13px',
               borderRadius: '10px',
               background: 'rgba(5, 7, 15, 0.7)',
-              border: `1px solid ${selectedAgentId ? `${currentColor}60` : 'var(--border)'}`,
+              border: `1px solid ${activeAgentId ? `${currentColor}60` : 'var(--border)'}`,
               color: 'var(--t1)',
-              boxShadow: selectedAgentId ? `0 0 14px ${currentColor}15` : 'none',
+              boxShadow: activeAgentId ? `0 0 14px ${currentColor}15` : 'none',
             }}
           />
         </div>

@@ -4,10 +4,9 @@ Narrative beat map — defines what dramatic moment the scene is in based on tur
 Single source of truth: the frontend constants/beats.js mirrors this
 structure but should be validated against this module via the /api/beats endpoint.
 """
-from typing import List, Tuple
 
 # (start_turn, end_turn, beat_description)
-NARRATIVE_BEATS: List[Tuple[int, int, str]] = [
+NARRATIVE_BEATS: list[tuple[int, int, str]] = [
     # ── Act I: Establishment ─────────────────────────────────────────────────
     (0,   3,   "COLD OPEN: Ground yourself in the scene. Establish your mood and your relationship. Be specific — mention something physical about the environment."),
     (4,   7,   "STATUS QUO: Everything seems normal on the surface, but your internal agenda is simmering. Drop one oblique hint — a loaded word, an odd pause, an off-hand comment."),

@@ -2,8 +2,9 @@
 Pydantic state models for PersonaPlay Pro.
 Migrated from the top-level state.py — import from here going forward.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
 
 
 class Prop(BaseModel):
@@ -16,7 +17,7 @@ class Prop(BaseModel):
 class WorldState(BaseModel):
     location: str
     lighting: str
-    props: List[Prop]
+    props: list[Prop]
 
 
 class EmotionVector(BaseModel):
@@ -45,17 +46,17 @@ class ModelConfig(BaseModel):
     provider: Literal["lm_studio", "openrouter", "google"] = "lm_studio"
     base_url: str = "http://localhost:1234/v1"
     model_name: str = "local-model"
-    api_key: Optional[str] = None
+    api_key: str | None = None
 
 
 class AgentState(BaseModel):
     id: str
     emotions: EmotionVector
-    hidden_agenda: Optional[str] = None
-    traits: Optional[str] = None  # New field for character personality/description
-    pending_whisper: Optional[str] = None  # Secret in-ear coaching from the Director
-    known_secrets: List[str] = Field(default_factory=list)  # Secrets, rumors, and director whispers remembered
-    last_emote: Optional[str] = None  # Last micro-gesture or visual emote displayed
+    hidden_agenda: str | None = None
+    traits: str | None = None  # New field for character personality/description
+    pending_whisper: str | None = None  # Secret in-ear coaching from the Director
+    known_secrets: list[str] = Field(default_factory=list)  # Secrets, rumors, and director whispers remembered
+    last_emote: str | None = None  # Last micro-gesture or visual emote displayed
     relationships: dict[str, RelationshipVector] = Field(default_factory=dict)
     # Human-readable social facts complement numeric affinity and define roles,
     # expectations, and boundaries that scores cannot express by themselves.
@@ -68,9 +69,9 @@ class OrchestratorState(BaseModel):
     """The top-level state object passed through the LangGraph."""
     scene: SceneState
     agents: dict[str, AgentState]
-    chat_history: List[str]
+    chat_history: list[str]
     next_speaker: str
     # Set only for a user-authored character line. The following AI turn uses
     # this as a hard conversational anchor, then turn.py clears it from live state.
-    manual_reply_speaker: Optional[str] = None
-    manual_reply_content: Optional[str] = None
+    manual_reply_speaker: str | None = None
+    manual_reply_content: str | None = None

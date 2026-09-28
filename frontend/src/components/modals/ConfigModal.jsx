@@ -1,6 +1,7 @@
 import { agentColor } from '../../utils/colors'
 import { Badge } from '../shared/Badge'
-import { STARTING_BLUEPRINTS } from '../../constants/blueprints'
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 const DEFAULT_CONFIG = {
   provider: 'lm_studio',
@@ -21,6 +22,36 @@ const parseRelationshipContext = (text = '') => Object.fromEntries(
     .filter(([name, note]) => name.trim() && note?.trim())
     .map(([name, note]) => [name.trim(), note.trim()])
 )
+
+const NEUTRAL_EMOTIONS = { tension: 0.5, affection: 0.5, energy: 0.5, suspicion: 0.5 }
+
+/** Seed roster used only when the backend has not reported any agents yet. */
+const STARTER_AGENTS = [
+  {
+    id: 'Maya',
+    traits: 'Playful, witty graphic designer with an expressive smirk and dry humor. Speaks casually with affectionate teasing, lounging comfortably under a pile of cushions.',
+    hidden_agenda: 'You blew the weekend dinner budget on surprise concert passes for Liam tonight. You must convince Liam to stay in and cook cheap pantry mac-and-cheese without spoiling the concert reveal at 7:00 PM.',
+    emotions: { tension: 0.35, affection: 0.9, energy: 0.6, suspicion: 0.2 },
+    relationships: { 'Liam': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.55 } },
+  },
+  {
+    id: 'Liam',
+    traits: 'Warm, easygoing UX designer, prone to gentle overthinking and teasing banter. Loves cozy weekend routines, spicy comfort food, and stealing back blanket corners.',
+    hidden_agenda: 'You promised Maya she could pick dinner, but you have had an intense craving for extra-spicy Thai drunken noodles all day. Persuade Maya that Thai food is the superior choice today while reclaiming some blanket.',
+    emotions: { tension: 0.25, affection: 0.9, energy: 0.55, suspicion: 0.2 },
+    relationships: { 'Maya': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.45 } },
+  },
+].map(a => ({ ...a, llm_config: { ...DEFAULT_CONFIG } }))
+
+/** Build the editable agent rows the modal starts with. */
+const buildInitialAgents = (currentAgents) => {
+  if (!currentAgents || currentAgents.length === 0) return STARTER_AGENTS
+  return currentAgents.map(a => ({
+    ...a,
+    llm_config: a.llm_config || { ...DEFAULT_CONFIG },
+    emotions: a.emotions || { ...NEUTRAL_EMOTIONS },
+  }))
+}
 
 const SAMPLE_YAML = `# PersonaPlay Blueprint: Casual Date Night
 scene:
@@ -51,19 +82,37 @@ props:
     visibility: "visible"`
 
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import yaml from 'js-yaml'
 
 export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, currentScene, currentAgents, onSystemReset, onExportScript }) {
   const [view, setView] = useState('form') // 'form' or 'yaml'
 
   const [yamlText, setYamlText] = useState('')
-  
-  const [sceneName, setSceneName] = useState('')
-  const [location, setLocation] = useState('')
-  const [lighting, setLighting] = useState('')
-  const [agents, setAgents] = useState([])
-  const [props, setProps] = useState([])
+
+  // Initial state is derived from props via lazy initializers, and App renders
+  // this component with a `key` that changes on open. That remounts the modal
+  // with fresh values — which is what the old "sync on open" useEffect was
+  // doing, minus the extra render pass and the cascading-setState warning.
+  const [sceneName, setSceneName] = useState(() => currentScene?.active_scene || '')
+  const [location, setLocation] = useState(() => currentScene?.world_state?.location || '')
+  const [lighting, setLighting] = useState(() => currentScene?.world_state?.lighting || '')
+  const [props, setProps] = useState(() => currentScene?.world_state?.props || [])
+  const [agents, setAgents] = useState(() => buildInitialAgents(currentAgents))
+
+  // Scenario presets come from the backend (GET /api/blueprints) so there is a
+  // single source of truth. The previous hand-maintained JS copy in
+  // constants/blueprints.js was free to drift from the Python catalogue.
+  const [blueprints, setBlueprints] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_URL}/api/blueprints`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => { if (!cancelled) setBlueprints(Array.isArray(data) ? data : []) })
+      .catch(() => { if (!cancelled) setBlueprints([]) })
+    return () => { cancelled = true }
+  }, [])
 
   const handleYamlSync = () => {
     try {
@@ -134,7 +183,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
   }
 
   const handleSelectBlueprint = (blueprintId) => {
-    const bp = STARTING_BLUEPRINTS.find(b => b.id === blueprintId)
+    const bp = blueprints.find(b => b.id === blueprintId)
     if (!bp) return
 
     setSceneName(bp.scene.name)
@@ -189,49 +238,6 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
     }
     setYamlText(yaml.dump(dumpData, { indent: 2 }))
   }
-
-
-  // Sync state with props whenever modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setSceneName(currentScene?.active_scene || '')
-      setLocation(currentScene?.world_state?.location || '')
-      setLighting(currentScene?.world_state?.lighting || '')
-      setProps(currentScene?.world_state?.props || [])
-      
-      if (currentAgents && currentAgents.length > 0) {
-        setAgents(currentAgents.map(a => ({
-          ...a,
-          llm_config: a.llm_config || { ...DEFAULT_CONFIG },
-          emotions: a.emotions || { tension: 0.5, affection: 0.5, energy: 0.5, suspicion: 0.5 }
-        })))
-      } else {
-        // Fallback to defaults only if no agents exist
-        setAgents([
-          {
-            id: 'Maya',
-            traits: 'Playful, witty graphic designer with an expressive smirk and dry humor. Speaks casually with affectionate teasing, lounging comfortably under a pile of cushions.',
-            hidden_agenda: 'You blew the weekend dinner budget on surprise concert passes for Liam tonight. You must convince Liam to stay in and cook cheap pantry mac-and-cheese without spoiling the concert reveal at 7:00 PM.',
-            emotions: { tension: 0.35, affection: 0.9, energy: 0.6, suspicion: 0.2 },
-            relationships: {
-              'Liam': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.55 },
-            },
-            llm_config: { ...DEFAULT_CONFIG },
-          },
-          {
-            id: 'Liam',
-            traits: 'Warm, easygoing UX designer, prone to gentle overthinking and teasing banter. Loves cozy weekend routines, spicy comfort food, and stealing back blanket corners.',
-            hidden_agenda: 'You promised Maya she could pick dinner, but you have had an intense craving for extra-spicy Thai drunken noodles all day. Persuade Maya that Thai food is the superior choice today while reclaiming some blanket.',
-            emotions: { tension: 0.25, affection: 0.9, energy: 0.55, suspicion: 0.2 },
-            relationships: {
-              'Maya': { trust: 0.9, affinity: 0.92, fear: 0.05, dominance: 0.45 },
-            },
-            llm_config: { ...DEFAULT_CONFIG },
-          },
-        ])
-      }
-    }
-  }, [isOpen, currentScene, currentAgents])
 
 
   if (!isOpen) return null
@@ -292,7 +298,17 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           <div className="mtitle">🎭 Simulation Blueprint</div>
           <div className="mtabs">
             <button className={`mtab ${view === 'form' ? 'active' : ''}`} onClick={() => setView('form')}>Form Editor</button>
-            <button className={`mtab ${view === 'yaml' ? 'active' : ''}`} onClick={exportToYaml}>YAML Source</button>
+            <button
+              className={`mtab ${view === 'yaml' ? 'active' : ''}`}
+              onClick={() => {
+                // First visit to the YAML tab shows the annotated sample so the
+                // schema is discoverable; afterwards the live export takes over.
+                if (!yamlText) setYamlText(SAMPLE_YAML)
+                setView('yaml')
+              }}
+            >
+              YAML Source
+            </button>
           </div>
         </div>
 
@@ -317,7 +333,7 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             </span>
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {STARTING_BLUEPRINTS.map(bp => {
+            {blueprints.map(bp => {
               const isSelected = sceneName === bp.scene.name
               return (
                 <button
@@ -564,6 +580,14 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                 ⬇ Export Script
               </button>
             )}
+            <button
+              type="button"
+              className="cb"
+              onClick={exportToYaml}
+              title="Serialise the current blueprint to YAML and show it in the YAML Source tab"
+            >
+              ⬇ Export YAML
+            </button>
           </div>
 
           <button className="btn-cancel" onClick={onClose}>Cancel</button>

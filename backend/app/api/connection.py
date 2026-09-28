@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import copy
-from typing import List, Optional
 
 from fastapi import WebSocket
 
@@ -24,7 +23,7 @@ class ConnectionManager:
     """Manages active WebSocket connections and broadcasting."""
 
     def __init__(self) -> None:
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
@@ -35,7 +34,7 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict) -> None:
-        dead: List[WebSocket] = []
+        dead: list[WebSocket] = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
@@ -55,8 +54,8 @@ class SimulationState:
 
     def __init__(self) -> None:
         self.state: OrchestratorState = initial_state.model_copy(deep=True)
-        self.history: List[OrchestratorState] = []
-        self.current_task: Optional[asyncio.Task] = None
+        self.history: list[OrchestratorState] = []
+        self.current_task: asyncio.Task | None = None
         self.pending_turn = False
         self.lock = asyncio.Lock()
 

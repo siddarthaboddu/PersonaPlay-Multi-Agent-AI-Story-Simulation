@@ -1,4 +1,4 @@
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { agentColor } from '../../utils/colors'
 import { Avatar } from './Avatar'
 

@@ -1,6 +1,7 @@
 """Tests for narrative beat coverage and consistency."""
 import pytest
-from app.agents.beats import NARRATIVE_BEATS, get_beat, get_beat_label, beats_as_json
+
+from app.agents.beats import NARRATIVE_BEATS, beats_as_json, get_beat, get_beat_label
 
 
 def test_beat_exists_for_every_turn():
@@ -48,8 +49,9 @@ def test_beats_as_json_structure():
 @pytest.mark.asyncio
 async def test_handle_toggle_phases():
     from unittest.mock import AsyncMock, MagicMock
+
     from app.api.handlers.scene import handle_toggle_phases
-    from app.models.payloads import TogglePhasesPayload, InboundPayload
+    from app.models.payloads import InboundPayload, TogglePhasesPayload
     from app.models.state import OrchestratorState, SceneState, WorldState
 
     raw = {"type": "toggle_phases", "enabled": False}

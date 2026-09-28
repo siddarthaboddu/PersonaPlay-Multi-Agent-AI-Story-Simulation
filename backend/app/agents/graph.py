@@ -2,20 +2,17 @@
 LangGraph builder and default scene loader.
 
 The graph is compiled once at module import time and reused across all sessions.
-The initial_state is loaded from a YAML scene file so it can be changed without
-touching source code.
+The default state is built from the first entry in
+`app.constants.blueprints.STARTING_BLUEPRINTS` — NOT from a YAML file on disk.
+(YAML is still accepted as an *input* format: the frontend parses it in
+ConfigModal and posts the result over the wire as `configure_scene`.)
 """
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
-import yaml
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.actor import actor_node
 from app.agents.director import director_node
-from app.config import settings
 from app.models.state import (
     AgentState,
     EmotionVector,
@@ -26,7 +23,6 @@ from app.models.state import (
     SceneState,
     WorldState,
 )
-
 
 # ── Graph ─────────────────────────────────────────────────────────────────────
 

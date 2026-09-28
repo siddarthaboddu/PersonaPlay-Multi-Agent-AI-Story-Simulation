@@ -7,7 +7,6 @@ observations and prompts the LLM to form abstract beliefs, suspicions, and tacti
 from __future__ import annotations
 
 import re
-from typing import List
 
 from langchain_core.messages import HumanMessage
 
@@ -19,10 +18,10 @@ from app.services.memory import add_reflection
 async def generate_reflections(
     agent_id: str,
     agent: AgentState,
-    recent_observations: List[str],
+    recent_observations: list[str],
     current_beat: str,
     turn_num: int,
-) -> List[str]:
+) -> list[str]:
     """
     Synthesize 1-2 strategic insights from recent dialogue and store them in ChromaDB.
 
@@ -59,7 +58,7 @@ Do not just repeat dialogue. Focus on:
 
 Format each insight on a new line starting with 'Insight: '. Output 1 or 2 concise bullet points only."""
 
-    insights: List[str] = []
+    insights: list[str] = []
     try:
         model = get_model(agent.llm_config, creative=False)
         res = await model.ainvoke([HumanMessage(content=prompt)])

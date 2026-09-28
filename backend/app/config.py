@@ -3,8 +3,9 @@ Central application settings.
 All environment variables are read here — nowhere else in the codebase
 should call os.environ.get() or os.getenv() directly.
 """
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):

@@ -64,11 +64,29 @@ async def handle_next_turn(
                     sim.state.manual_reply_speaker = None
                     sim.state.manual_reply_content = None
 
-                # 3. Merge Agent updates (emotions, relationships, etc.)
+                # 3. Merge Agent updates.
+                #
+                # This MUST copy every field the actor node mutates, not just a
+                # hand-picked few. The graph works on its own deep copy, so any
+                # field omitted here is silently discarded when that copy is
+                # thrown away. Previously only `emotions` and `relationships`
+                # survived, which silently killed two features:
+                #   * `last_emote`   — emotes never reached the UI (always None)
+                #   * `known_secrets` — the whole gossip engine reset every turn
+                #
+                # `pending_whisper` is deliberately excluded: it is a one-shot
+                # directive owned by the Director, and turn.py already clears it
+                # on the live agent once the speaker has consumed it.
                 for aid, ag in new_state.agents.items():
                     if aid in sim.state.agents:
-                        sim.state.agents[aid].emotions = ag.emotions
-                        sim.state.agents[aid].relationships = ag.relationships
+                        live = sim.state.agents[aid]
+                        live.emotions = ag.emotions
+                        live.relationships = ag.relationships
+                        live.last_emote = ag.last_emote
+                        live.known_secrets = ag.known_secrets
+                        live.traits = ag.traits
+                        live.hidden_agenda = ag.hidden_agenda
+                        live.relationship_context = ag.relationship_context
 
                 # 4. Selective World Update: Prop transfer and Location change
                 for p_new in new_state.scene.world_state.props:
@@ -110,8 +128,8 @@ async def handle_next_turn(
                 await asyncio.sleep(1)  # visual pause
 
                 emote = sim.state.agents[actual_speaker].last_emote if actual_speaker in sim.state.agents else None
-                is_gossip = any("[GOSSIP LEAK]" in l for l in new_lines)
-                gossip_note = next((l for l in new_lines if "[GOSSIP LEAK]" in l), None)
+                is_gossip = any("[GOSSIP LEAK]" in line for line in new_lines)
+                gossip_note = next((line for line in new_lines if "[GOSSIP LEAK]" in line), None)
 
                 # 2. Broadcast dialogue
                 await manager.broadcast({
@@ -167,22 +185,27 @@ async def handle_next_turn(
                 should_reflect = (turn_num > 0 and turn_num % 4 == 0) or is_dramatic
 
                 if should_reflect and actual_speaker in sim.state.agents:
-                    async def run_reflection_bg(
-                        aid=actual_speaker,
-                        ag=sim.state.agents[actual_speaker].model_copy(deep=True),
-                        tc=turn_num,
-                        beat_str=current_beat,
-                        chat_snapshot=list(sim.state.chat_history),
-                    ):
+                    # Snapshot everything the background task needs NOW, then
+                    # close over those locals. Do not read sim.state from inside
+                    # the coroutine — it will have moved on by the time it runs.
+                    _aid = actual_speaker
+                    _ag = sim.state.agents[actual_speaker].model_copy(deep=True)
+                    _tc = turn_num
+                    _beat = current_beat
+                    _chat = list(sim.state.chat_history)
+
+                    async def run_reflection_bg():
                         try:
                             from app.agents.reflection import generate_reflections
-                            new_insights = await generate_reflections(aid, ag, chat_snapshot, beat_str, tc)
+                            new_insights = await generate_reflections(
+                                _aid, _ag, _chat, _beat, _tc
+                            )
                             for ins in new_insights:
                                 await manager.broadcast({
                                     "type": "insight_update",
-                                    "agent_id": aid,
+                                    "agent_id": _aid,
                                     "insight": ins,
-                                    "turn": tc,
+                                    "turn": _tc,
                                 })
                         except Exception as ex:
                             print(f"[Turn] Background reflection error: {ex}")

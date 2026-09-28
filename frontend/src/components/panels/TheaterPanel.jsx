@@ -1,4 +1,4 @@
-import { useSimulationContext } from '../../context/SimulationContext'
+import { useSimulationContext } from '../../context/useSimulationContext'
 import { Stage } from '../stage/Stage'
 import { MessageFeed } from '../feed/MessageFeed'
 import { ManualDialogueBar } from '../feed/ManualDialogueBar'

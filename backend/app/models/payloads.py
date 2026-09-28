@@ -10,9 +10,9 @@ the old if/elif chain.
 """
 from __future__ import annotations
 
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
-from pydantic import BaseModel, Field, RootModel
+from typing import Annotated, Any, Literal
 
+from pydantic import BaseModel, Field, RootModel
 
 # ── Inbound (frontend → backend) ─────────────────────────────────────────────
 
@@ -38,8 +38,8 @@ class GetStatePayload(BaseModel):
 
 class ChangeScenePayload(BaseModel):
     type: Literal["change_scene"]
-    location: Optional[str] = None
-    scene_name: Optional[str] = None
+    location: str | None = None
+    scene_name: str | None = None
 
 
 class RewindPayload(BaseModel):
@@ -55,18 +55,18 @@ class ForceGivePropPayload(BaseModel):
 
 class ConfigureScenePayload(BaseModel):
     type: Literal["configure_scene"]
-    agents: List[Dict[str, Any]]
-    scene_name: Optional[str] = None
-    location: Optional[str] = None
-    lighting: Optional[str] = None
-    props: Optional[List[Dict[str, Any]]] = None
-    phases_enabled: Optional[bool] = None
+    agents: list[dict[str, Any]]
+    scene_name: str | None = None
+    location: str | None = None
+    lighting: str | None = None
+    props: list[dict[str, Any]] | None = None
+    phases_enabled: bool | None = None
 
 
 class CheckModelPayload(BaseModel):
     type: Literal["check_model"]
     agent_id: str
-    llm_config: Dict[str, Any]
+    llm_config: dict[str, Any]
 
 
 class DirectorCommandPayload(BaseModel):
@@ -124,31 +124,36 @@ class ManualDialoguePayload(BaseModel):
     trigger_response: bool = True
 
 
-# Discriminated union — validated by 'type' field
+# Discriminated union — validated by 'type' field.
+# Kept vertical (rather than one long `A | B | ...` line) so that adding a new
+# message type stays a one-line, reviewable diff.
+InboundMessage = (
+    StartScenePayload
+    | StopScenePayload
+    | PauseScenePayload
+    | NextTurnPayload
+    | RetakeTurnPayload
+    | TogglePhasesPayload
+    | ManualDialoguePayload
+    | GetStatePayload
+    | ChangeScenePayload
+    | RewindPayload
+    | ForceGivePropPayload
+    | ConfigureScenePayload
+    | CheckModelPayload
+    | DirectorCommandPayload
+    | DirectorWhisperPayload
+    | ForceEmotionPayload
+    | ForceRelationshipPayload
+    | ForceSceneTensionPayload
+    | ExportScriptPayload
+    | SystemResetPayload
+)
+
+
 class InboundPayload(RootModel):
     root: Annotated[
-        Union[
-            StartScenePayload,
-            StopScenePayload,
-            PauseScenePayload,
-            NextTurnPayload,
-            RetakeTurnPayload,
-            TogglePhasesPayload,
-            ManualDialoguePayload,
-            GetStatePayload,
-            ChangeScenePayload,
-            RewindPayload,
-            ForceGivePropPayload,
-            ConfigureScenePayload,
-            CheckModelPayload,
-            DirectorCommandPayload,
-            DirectorWhisperPayload,
-            ForceEmotionPayload,
-            ForceRelationshipPayload,
-            ForceSceneTensionPayload,
-            ExportScriptPayload,
-            SystemResetPayload,
-        ],
+        InboundMessage,
         Field(discriminator="type"),
     ]
 
@@ -174,17 +179,17 @@ class MonologueMessage(BaseModel):
 
 class WorldUpdateMessage(BaseModel):
     type: Literal["world_update"] = "world_update"
-    world: Dict[str, Any]
+    world: dict[str, Any]
 
 
 class AgentsUpdateMessage(BaseModel):
     type: Literal["agents_update"] = "agents_update"
-    agents: List[Dict[str, Any]]
+    agents: list[dict[str, Any]]
 
 
 class VitalsUpdateMessage(BaseModel):
     type: Literal["vitals_update"] = "vitals_update"
-    vitals: Dict[str, Any]
+    vitals: dict[str, Any]
 
 
 class ImageUpdateMessage(BaseModel):
@@ -195,15 +200,15 @@ class ImageUpdateMessage(BaseModel):
 
 class HistoryResetMessage(BaseModel):
     type: Literal["history_reset"] = "history_reset"
-    messages: List[Dict[str, Any]] = []
-    monologues: List[Dict[str, Any]] = []
+    messages: list[dict[str, Any]] = []
+    monologues: list[dict[str, Any]] = []
 
 
 class CheckResultMessage(BaseModel):
     type: Literal["check_result"] = "check_result"
     agent_id: str
     status: Literal["ok", "error"]
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class ErrorMessage(BaseModel):
@@ -228,5 +233,5 @@ class InsightUpdateMessage(BaseModel):
 class WhisperUpdateMessage(BaseModel):
     type: Literal["whisper_update"] = "whisper_update"
     agent_id: str
-    whisper: Optional[str] = None
+    whisper: str | None = None
 

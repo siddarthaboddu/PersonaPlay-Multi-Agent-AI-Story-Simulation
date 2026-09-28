@@ -6,9 +6,10 @@ export function Avatar({ agent, index, isSpeaking, color, total }) {
   const left = 50 + radius * Math.sin((angle * Math.PI) / 180)
   const top = 50 - radius * Math.cos((angle * Math.PI) / 180) + 15
 
-  // Derive expressive emote based on state, secrets, or emotions
-  let emote = agent.last_emote
-  let emoteTitle = "Mood: Calm"
+  // Derive an expressive emote from state, secrets, or emotions.
+  // Declared without an initial value because every branch below assigns.
+  let emote
+  let emoteTitle
 
   if (isSpeaking && agent.last_emote) {
     emote = agent.last_emote

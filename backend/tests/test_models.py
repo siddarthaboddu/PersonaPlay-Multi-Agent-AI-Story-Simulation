@@ -1,14 +1,21 @@
 """Tests for state models and simulation state management."""
 import pytest
-from app.models.state import (
-    AgentState, EmotionVector, ModelConfig,
-    OrchestratorState, Prop, SceneState, WorldState,
-)
+from pydantic import ValidationError
+
 from app.models.payloads import (
-    InboundPayload, StartScenePayload, RewindPayload,
     ForceEmotionPayload,
+    InboundPayload,
+    RewindPayload,
+    StartScenePayload,
 )
-from pydantic import TypeAdapter, ValidationError
+from app.models.state import (
+    AgentState,
+    EmotionVector,
+    OrchestratorState,
+    Prop,
+    SceneState,
+    WorldState,
+)
 
 
 def _make_state() -> OrchestratorState:

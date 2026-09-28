@@ -1,9 +1,8 @@
 """Tests for starting blueprints catalog and REST API."""
-import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.constants.blueprints import STARTING_BLUEPRINTS, get_starting_blueprints
+from app.main import app
 
 
 def test_blueprints_catalog_structure():
