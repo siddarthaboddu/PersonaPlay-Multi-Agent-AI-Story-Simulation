@@ -11,6 +11,11 @@ dependencies = [
     "langchain-google-genai>=0.0.6",
     "langchain-chroma>=0.1",
     "langchain-huggingface>=0.0.3",
+    # REQUIRED by langchain-huggingface at runtime. Without it,
+    # HuggingFaceEmbeddings cannot construct and the episodic memory engine
+    # silently no-ops (every write dropped, every recall empty). It is not a
+    # transitive dependency, so it must be declared explicitly.
+    "sentence-transformers>=2.2",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "python-dotenv>=1.0",

@@ -64,6 +64,11 @@ async def handle_next_turn(
                     sim.state.manual_reply_speaker = None
                     sim.state.manual_reply_content = None
 
+                # gossip_target is a one-shot per-turn signal. The actor already
+                # resets it on its own copy each turn, but clear the live copy
+                # too so a retake/rewind can never resurrect a stale leak.
+                sim.state.gossip_target = None
+
                 # 3. Merge Agent updates.
                 #
                 # This MUST copy every field the actor node mutates, not just a
@@ -128,7 +133,11 @@ async def handle_next_turn(
                 await asyncio.sleep(1)  # visual pause
 
                 emote = sim.state.agents[actual_speaker].last_emote if actual_speaker in sim.state.agents else None
-                is_gossip = any("[GOSSIP LEAK]" in line for line in new_lines)
+                # Read the authoritative flag the actor set, not a text search.
+                # Matching "[GOSSIP LEAK]" in history produced false positives
+                # whenever a character happened to say those words aloud.
+                gossip_target = new_state.gossip_target
+                is_gossip = bool(gossip_target)
                 gossip_note = next((line for line in new_lines if "[GOSSIP LEAK]" in line), None)
 
                 # 2. Broadcast dialogue
@@ -146,7 +155,6 @@ async def handle_next_turn(
                         "type": "action",
                         "content": gossip_note,
                     })
-
                 # 3. Broadcast world + agent updates
                 await manager.broadcast({
                     "type": "world_update",

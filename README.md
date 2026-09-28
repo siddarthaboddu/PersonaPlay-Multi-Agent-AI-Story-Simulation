@@ -146,6 +146,24 @@ uvicorn app.main:app --reload --port 8000
 ```
 Backend runs on `http://localhost:8000` (API docs at `http://localhost:8000/docs`).
 
+#### Verifying episodic memory is active
+
+Long-term recall uses local sentence embeddings (`all-MiniLM-L6-v2`), which are
+downloaded once on first use. Confirm the engine is live with:
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+```json
+{ "status": "ok", "service": "PersonaPlay Pro",
+  "memory": { "available": true, "reason": null } }
+```
+
+If `available` is `false`, the `reason` field explains why. The simulation still
+runs — characters just have no persistent recall across turns, and the **Backstage
+→ Psychology** tab will not show recalled moments.
+
 ---
 
 ### 2. Frontend Setup
@@ -275,6 +293,7 @@ ruff check .
 - `test_retake.py`: 1-click turn rewind/retake, snapshot rollback, and history synchronization.
 - `test_whisper.py`: Director whisper injection, prompt formatting, and single-turn consumption.
 - `test_turn_merge.py`: **The turn-merge contract** — asserts that every field the actor node mutates (emote, `known_secrets`, emotions, identity fields) survives the copy from the graph's working state back into live state, and that a consumed whisper is not resurrected.
+- `test_gossip_and_memory.py`: Gossip-diffusion signal correctness (a no-op re-share is not a leak; a character *saying* "[GOSSIP LEAK]" does not trigger the badge) and the episodic-memory availability probe.
 - `test_image_service.py`: World state prompt generation and deterministic seed generation.
 
 > **Note on the turn merge.** `handle_next_turn` runs the LangGraph turn on a

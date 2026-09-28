@@ -1,4 +1,5 @@
 import asyncio
+import threading
 
 from app.config import settings
 
@@ -6,20 +7,60 @@ _embeddings = None
 _vectorstore = None
 _lock = asyncio.Lock()
 
+# Set once the vector store has been successfully constructed, or once we have
+# determined it cannot be. Without this, `_get_vectorstore` re-attempts the
+# (slow, always-failing) import on EVERY memory call — and the graceful
+# degradation turns into a hot-path cost on every single turn.
+_init_lock = threading.Lock()
+_unavailable_reason: str | None = None
+
+
+def memory_status() -> dict:
+    """Report whether the episodic memory engine is actually usable.
+
+    The engine degrades silently: if the embedding backend cannot be imported,
+    every write is dropped and every read returns "". Callers (and /api/health)
+    need a way to tell a user that the feature is off rather than assuming the
+    characters simply have nothing to remember.
+    """
+    if _vectorstore is not None:
+        return {"available": True, "reason": None}
+    return {
+        "available": False,
+        "reason": _unavailable_reason or "not initialised yet",
+    }
+
 
 def _get_vectorstore():
-    global _embeddings, _vectorstore
-    if _vectorstore is None:
+    global _embeddings, _vectorstore, _unavailable_reason
+
+    if _vectorstore is not None:
+        return _vectorstore
+    if _unavailable_reason is not None:
+        # Already failed once; do not pay the import cost again.
+        return None
+
+    with _init_lock:
+        if _vectorstore is not None:
+            return _vectorstore
+        if _unavailable_reason is not None:
+            return None
         try:
             from langchain_chroma import Chroma
             from langchain_huggingface import HuggingFaceEmbeddings
+
             _embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
             _vectorstore = Chroma(
                 embedding_function=_embeddings,
                 persist_directory=settings.chroma_persist_dir,
             )
         except Exception as e:
-            print(f"[Memory] Chroma/HuggingFace unavailable ({e}) — running without episodic vector store.")
+            _unavailable_reason = str(e)
+            print(
+                f"[Memory] Episodic memory DISABLED ({e}). "
+                "Install the embedding backend to enable long-term recall: "
+                "pip install sentence-transformers"
+            )
             return None
     return _vectorstore
 

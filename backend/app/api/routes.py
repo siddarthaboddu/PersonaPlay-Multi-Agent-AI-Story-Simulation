@@ -29,7 +29,19 @@ def list_blueprints():
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "service": "PersonaPlay Pro"}
+    """Liveness probe that also surfaces degraded optional subsystems.
+
+    Episodic memory fails soft by design, so without this the service reports
+    "ok" while silently dropping every write and returning no recalls.
+    """
+    from app.services.memory import memory_status
+
+    memory = memory_status()
+    return {
+        "status": "ok",
+        "service": "PersonaPlay Pro",
+        "memory": memory,
+    }
 
 
 @router.get("/state")

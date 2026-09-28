@@ -75,3 +75,10 @@ class OrchestratorState(BaseModel):
     # this as a hard conversational anchor, then turn.py clears it from live state.
     manual_reply_speaker: str | None = None
     manual_reply_content: str | None = None
+    # Set by the actor node when a secret was ACTUALLY transferred to another
+    # agent this turn, formatted "<speaker> -> <target>". This is the
+    # authoritative signal for the gossip UI. It deliberately does not reuse the
+    # human-facing "[GOSSIP LEAK]" history line, because a character can
+    # legitimately say those words out loud and matching on text gives false
+    # positives. Cleared by turn.py after the turn is broadcast.
+    gossip_target: str | None = None

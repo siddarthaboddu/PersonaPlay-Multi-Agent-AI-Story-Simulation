@@ -279,6 +279,9 @@ Generate ONE JSON object matching this schema:
     dialogue = ""
     is_gossip = False
     gossip_target_clean = ""
+    # Always clear any inherited value so a turn with no leak cannot inherit the
+    # previous turn's gossip flag through the state copy.
+    state.gossip_target = None
 
     try:
         response = await model.ainvoke([HumanMessage(content=prompt)])
@@ -366,20 +369,33 @@ Generate ONE JSON object matching this schema:
                 print(f"[Actor] Relationship drift for {speaker} toward {target_clean}: {agent.relationships[target_clean]}")
 
         # ── 11. Secret & gossip diffusion ─────────────────────────────────────
+        # A leak only counts if knowledge ACTUALLY moved. Previously the
+        # is_gossip flag was raised before the dedup check, so a character
+        # re-confiding something the target already knew still rendered a
+        # "Secret Confided" badge while transferring nothing.
         if parsed.get("secret_shared") and target_name:
             target_clean = target_name.strip()
             if target_clean in state.agents and target_clean != speaker:
-                is_gossip = True
-                gossip_target_clean = target_clean
                 target_agent = state.agents[target_clean]
                 secret_to_pass = (
                     agent.known_secrets[-1]
                     if agent.known_secrets
                     else (agent.pending_whisper or agent.hidden_agenda or "confidential information")
                 )
-                if secret_to_pass and secret_to_pass not in target_agent.known_secrets:
-                    target_agent.known_secrets.append(f"{speaker} confided: {secret_to_pass}")
-                    print(f"[Actor] Gossip diffused! '{speaker}' confided secret to '{target_clean}'")
+                if secret_to_pass:
+                    # Compare against the exact form we store. Comparing the
+                    # raw secret against the prefixed entries never matches, so
+                    # re-confiding the same secret appended a duplicate on every
+                    # turn and grew known_secrets without bound.
+                    entry = f"{speaker} confided: {secret_to_pass}"
+                    if entry not in target_agent.known_secrets:
+                        target_agent.known_secrets.append(entry)
+                        is_gossip = True
+                        gossip_target_clean = target_clean
+                        state.gossip_target = f"{speaker} -> {target_clean}"
+                        print(f"[Actor] Gossip diffused! '{speaker}' confided secret to '{target_clean}'")
+                    else:
+                        print(f"[Actor] '{speaker}' tried to confide to '{target_clean}', but nothing new transferred.")
 
         # ── 12. Store episodic observation ────────────────────────────────────
         await add_memory(speaker, dialogue, memory_type="observation", turn=turn_num)
