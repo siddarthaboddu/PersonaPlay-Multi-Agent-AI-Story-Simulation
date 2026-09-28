@@ -21,10 +21,14 @@ class WorldState(BaseModel):
 
 
 class EmotionVector(BaseModel):
-    tension: float    # 0.0–1.0
-    affection: float  # 0.0–1.0
-    energy: float     # 0.0–1.0
-    suspicion: float  # 0.0–1.0
+    # Defaults are deliberate. A blueprint (or a hand-edited YAML paste) that
+    # omits one of these used to raise a ValidationError, which the
+    # configure_scene handler swallowed -- leaving a half-applied roster with
+    # a bare [ERROR] line in the feed. Neutral 0.5 is the sane starting point.
+    tension: float = 0.5    # 0.0–1.0
+    affection: float = 0.5  # 0.0–1.0
+    energy: float = 0.8     # 0.0–1.0
+    suspicion: float = 0.5  # 0.0–1.0
 
 
 class RelationshipVector(BaseModel):

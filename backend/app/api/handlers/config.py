@@ -76,6 +76,25 @@ async def handle_configure_scene(
             sim.state.chat_history = []
             sim.history = [sim.snapshot()]
 
+            # A full roster swap invalidates every piece of derived state.
+            #
+            # Episodic memories are keyed by agent id, so loading a different
+            # scenario that reuses a name (Maya in the living-room scene, Maya
+            # the assassin in the next) hands the new character the old
+            # character's entire recollection. The rolling LLM summary has the
+            # same problem: it is hashed against the previous scene's history
+            # and would go on describing the old plot once the new scene grows
+            # long enough to trigger compression.
+            #
+            # handle_start_scene already did both; configuration is an equally
+            # hard reset and must do the same.
+            from app.agents.llm import reset_summary_cache
+            from app.services.memory import clear_memories
+
+            reset_summary_cache()
+            sim.cancel_task()
+            await clear_memories()
+
             await manager.broadcast({
                 "type": "action",
                 "content": f"[SYSTEM]: Simulation reset and configured with {len(new_agents)} actors.",

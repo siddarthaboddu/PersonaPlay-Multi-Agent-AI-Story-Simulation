@@ -294,6 +294,7 @@ ruff check .
 - `test_whisper.py`: Director whisper injection, prompt formatting, and single-turn consumption.
 - `test_turn_merge.py`: **The turn-merge contract** — asserts that every field the actor node mutates (emote, `known_secrets`, emotions, identity fields) survives the copy from the graph's working state back into live state, and that a consumed whisper is not resurrected.
 - `test_gossip_and_memory.py`: Gossip-diffusion signal correctness (a no-op re-share is not a leak; a character *saying* "[GOSSIP LEAK]" does not trigger the badge) and the episodic-memory availability probe.
+- `test_scene_isolation.py`: Cross-scene state isolation — a new roster wipes episodic memories and the rolling summary; partial blueprints apply cleanly; manual dialogue routes the reply to whoever spoke last in a 3+ cast.
 - `test_image_service.py`: World state prompt generation and deterministic seed generation.
 
 > **Note on the turn merge.** `handle_next_turn` runs the LangGraph turn on a

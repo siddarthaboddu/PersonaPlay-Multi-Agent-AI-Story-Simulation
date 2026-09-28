@@ -103,10 +103,24 @@ async def handle_manual_dialogue(
         sim.state.manual_reply_speaker = agent_id
         sim.state.manual_reply_content = raw_text
 
-        # Cycle speaker to another agent so the other character responds
-        other_agents = [aid for aid in sim.state.agents.keys() if aid != agent_id]
+        # Choose who replies. Previously this was always `other_agents[0]`,
+        # which is correct for a two-hander but ignores the conversation in a
+        # 3+ cast: if the user spoke for the middle character, the person who
+        # was actually just talking gets skipped. Prefer whoever spoke most
+        # recently among the candidates, falling back to roster order.
+        agent_ids = list(sim.state.agents.keys())
+        other_agents = [aid for aid in agent_ids if aid != agent_id]
         if other_agents:
-            sim.state.next_speaker = other_agents[0]
+            last_spoken = None
+            for line in reversed(sim.state.chat_history):
+                if not line or line.startswith("["):
+                    continue
+                if ":" in line:
+                    cand = line.split(":", 1)[0].strip()
+                    if cand in other_agents:
+                        last_spoken = cand
+                        break
+            sim.state.next_speaker = last_spoken or other_agents[0]
 
         print(f"\n[Manual Dialogue Entered]: '{clean_dialogue}' -> next AI speaker is '{sim.state.next_speaker}'", flush=True)
 
