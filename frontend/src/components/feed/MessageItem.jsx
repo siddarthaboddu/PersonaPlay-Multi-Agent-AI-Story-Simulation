@@ -30,35 +30,6 @@ function formatDialogueContent(rawText) {
 export function MessageItem({ message, isLatest, onRetake, isProcessing }) {
   const { agents } = useSimulationContext()
 
-  if (message.type === 'image') {
-    return (
-      <div style={{
-        animation: 'messageSlideIn 0.3s ease-out',
-        background: 'var(--s2)',
-        padding: '10px',
-        borderRadius: '12px',
-        border: '1px solid var(--border)'
-      }}>
-        <div style={{
-          fontSize: 11,
-          color: 'var(--gold)',
-          marginBottom: 8,
-          fontStyle: 'italic',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6
-        }}>
-          <span>🎬 Scene Visualization:</span>
-          <span style={{ color: 'var(--t3)' }}>"{message.prompt?.substring(0, 80)}…"</span>
-        </div>
-        <img 
-          src={message.url} alt="" 
-          style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }}
-        />
-      </div>
-    )
-  }
-
   if (message.type === 'dialogue' && message.agent_id) {
     const idx = agents.findIndex(a => a.id === message.agent_id)
     const col = agentColor(idx >= 0 ? idx : 0)
@@ -128,7 +99,6 @@ export function MessageItem({ message, isLatest, onRetake, isProcessing }) {
   // Cinematic cue cards for director plot twists, scene shifts, and gossip notes
   const isDir = message.content?.includes('[DIRECTOR')
   const isGossip = message.content?.includes('[GOSSIP')
-  const isScn = message.content?.includes('[SCENE CHANGE')
   // The backend surfaces failures two ways: as an `action` line whose content is
   // prefixed "[ERROR]:", and as a dedicated `{"type": "error"}` payload. Match
   // both, otherwise failures render as ordinary system text.
@@ -142,21 +112,6 @@ export function MessageItem({ message, isLatest, onRetake, isProcessing }) {
         <div>
           <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.85, display: 'block' }}>
             Director Intervention
-          </span>
-          <span>{text}</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (isScn) {
-    const text = message.content.replace(/^\[SCENE CHANGE[^\]]*\]:\s*/, '')
-    return (
-      <div className="msg-a scn" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: 14 }}>📍</span>
-        <div>
-          <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.85, display: 'block' }}>
-            Stage Shift
           </span>
           <span>{text}</span>
         </div>

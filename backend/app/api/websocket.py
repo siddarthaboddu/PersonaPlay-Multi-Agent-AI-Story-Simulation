@@ -19,9 +19,7 @@ from app.api.handlers.config import (
     handle_check_model,
     handle_configure_scene,
     handle_force_emotion,
-    handle_force_give_prop,
     handle_force_relationship,
-    handle_force_scene_tension,
     handle_system_reset,
 )
 from app.api.handlers.director import (
@@ -29,15 +27,12 @@ from app.api.handlers.director import (
     handle_director_whisper,
     handle_export_script,
     handle_manual_dialogue,
-    handle_rewind_turns,
 )
 from app.api.handlers.scene import (
-    handle_change_scene,
     handle_get_state,
     handle_pause_scene,
     handle_start_scene,
     handle_stop_scene,
-    handle_toggle_phases,
 )
 from app.api.handlers.turn import handle_next_turn, handle_retake_turn
 from app.models.payloads import InboundPayload
@@ -74,16 +69,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_pause_scene(manager, sim, payload)
             elif t == "get_state":
                 await handle_get_state(manager, sim, payload, websocket)
-            elif t == "change_scene":
-                await handle_change_scene(manager, sim, payload)
             elif t == "next_turn":
                 await handle_next_turn(manager, sim, payload)
             elif t == "retake_turn":
                 await handle_retake_turn(manager, sim, payload)
-            elif t == "toggle_phases":
-                await handle_toggle_phases(manager, sim, payload)
-            elif t == "rewind_turns":
-                await handle_rewind_turns(manager, sim, payload)
             elif t == "director_command":
                 await handle_director_command(manager, sim, payload)
             elif t == "director_whisper":
@@ -96,14 +85,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await handle_configure_scene(manager, sim, payload)
             elif t == "check_model":
                 await handle_check_model(manager, sim, payload, websocket)
-            elif t == "force_give_prop":
-                await handle_force_give_prop(manager, sim, payload)
             elif t == "force_emotion":
                 await handle_force_emotion(manager, sim, payload)
             elif t == "force_relationship":
                 await handle_force_relationship(manager, sim, payload)
-            elif t == "force_scene_tension":
-                await handle_force_scene_tension(manager, sim, payload)
             elif t == "system_reset":
                 await handle_system_reset(manager, sim)
 

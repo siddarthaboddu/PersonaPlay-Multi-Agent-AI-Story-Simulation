@@ -19,7 +19,7 @@ async def generate_reflections(
     agent_id: str,
     agent: AgentState,
     recent_observations: list[str],
-    current_beat: str,
+    scene_context: str,
     turn_num: int,
 ) -> list[str]:
     """
@@ -44,7 +44,7 @@ async def generate_reflections(
     agenda_str = f"Secret Agenda: {agent.hidden_agenda}\n" if agent.hidden_agenda else ""
 
     prompt = f"""You are {agent_id}.
-{traits_str}{agenda_str}Current Dramatic Beat: {current_beat}
+{traits_str}{agenda_str}Current Scene Context: {scene_context}
 
 Recent events and statements in the scene:
 {context_chunk}

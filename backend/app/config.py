@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Scene / history tuning
     history_window_size: int = 80          # max raw lines kept in chat_history
     recent_raw_turns: int = 6              # verbatim turns kept by compress_history
-    state_history_max: int = 50            # max rewind snapshots held in memory
+    state_history_max: int = 50            # max retake snapshots held in memory
 
     # Auto-play
     auto_turn_delay_ms: int = 3200

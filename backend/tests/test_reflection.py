@@ -77,7 +77,7 @@ async def test_generate_reflections_parsing():
             agent_id="Alice",
             agent=agent,
             recent_observations=recent_observations,
-            current_beat="SUSPICION",
+            scene_context="Living Room; tension 0.65",
             turn_num=4,
         )
 
@@ -96,5 +96,5 @@ async def test_generate_reflections_empty_observations():
         id="Alice",
         emotions=EmotionVector(tension=0.5, affection=0.5, energy=0.5, suspicion=0.5),
     )
-    insights = await generate_reflections("Alice", agent, [], "SUSPICION", 1)
+    insights = await generate_reflections("Alice", agent, [], "Living Room", 1)
     assert insights == []

@@ -43,7 +43,6 @@ class SceneState(BaseModel):
     world_state: WorldState
     narrative_tension: float
     turn_count: int
-    phases_enabled: bool = False
 
 
 class ModelConfig(BaseModel):
@@ -58,6 +57,14 @@ class AgentState(BaseModel):
     emotions: EmotionVector
     hidden_agenda: str | None = None
     traits: str | None = None  # New field for character personality/description
+    motivations: list[str] = Field(default_factory=list)
+    starting_goal: str | None = None
+    current_goal: str | None = None
+    current_attention: str | None = None
+    starting_beliefs: list[str] = Field(default_factory=list)
+    beliefs: list[str] = Field(default_factory=list)
+    last_addressee: str | None = None
+    last_spoke_turn: int = -1
     pending_whisper: str | None = None  # Secret in-ear coaching from the Director
     known_secrets: list[str] = Field(default_factory=list)  # Secrets, rumors, and director whispers remembered
     last_emote: str | None = None  # Last micro-gesture or visual emote displayed

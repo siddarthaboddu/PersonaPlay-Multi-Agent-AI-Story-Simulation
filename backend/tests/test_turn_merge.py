@@ -134,14 +134,19 @@ async def test_merge_does_not_resurrect_a_consumed_whisper():
 
 @pytest.mark.asyncio
 async def test_merge_preserves_static_identity_fields():
-    """traits / hidden_agenda / relationship_context round-trip unchanged."""
+    """Live identity fields stay authoritative when a turn finishes."""
     result = _state()
     result.chat_history = ["Maya: I know about the tickets.", "Leo: Fine. Here."]
     result.agents["Leo"].traits = "calm, deflects with jokes"
     result.agents["Leo"].hidden_agenda = "protect the sister"
     result.agents["Leo"].relationship_context = {"Maya": "ex-girlfriend, still friends"}
 
-    sim = await _run_turn(result)
+    live = _state()
+    live.agents["Leo"].traits = "calm, deflects with jokes"
+    live.agents["Leo"].hidden_agenda = "protect the sister"
+    live.agents["Leo"].relationship_context = {"Maya": "ex-girlfriend, still friends"}
+
+    sim = await _run_turn(result, live_state=live)
     live = sim.state.agents["Leo"]
     assert live.traits == "calm, deflects with jokes"
     assert live.hidden_agenda == "protect the sister"

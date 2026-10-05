@@ -50,6 +50,9 @@ const buildInitialAgents = (currentAgents) => {
     ...a,
     llm_config: a.llm_config || { ...DEFAULT_CONFIG },
     emotions: a.emotions || { ...NEUTRAL_EMOTIONS },
+    motivations: a.motivations || [],
+    current_goal: a.current_goal || '',
+    beliefs: a.beliefs || [],
   }))
 }
 
@@ -131,6 +134,9 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
             id: a.id || 'Unnamed',
             traits: a.traits || '',
             hidden_agenda: a.hidden_agenda || '',
+            motivations: Array.isArray(a.motivations) ? a.motivations : (a.motivations || '').split('\n').filter(Boolean),
+            current_goal: a.current_goal || '',
+            beliefs: Array.isArray(a.beliefs) ? a.beliefs : (a.beliefs || '').split('\n').filter(Boolean),
             emotions: {
               tension: a.emotions?.tension ?? 0.5,
               affection: a.emotions?.affection ?? 0.5,
@@ -172,6 +178,9 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         id: a.id,
         traits: a.traits,
         hidden_agenda: a.hidden_agenda,
+        motivations: a.motivations,
+        current_goal: a.current_goal,
+        beliefs: a.beliefs,
         emotions: a.emotions,
         relationships: a.relationships,
         relationship_context: a.relationship_context,
@@ -203,6 +212,9 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
         id: a.id,
         traits: a.traits,
         hidden_agenda: a.hidden_agenda,
+        motivations: a.motivations || [],
+        current_goal: a.current_goal || '',
+        beliefs: a.beliefs || [],
         emotions: { ...a.emotions },
         relationships: a.relationships ? { ...a.relationships } : {},
         relationship_context: a.relationship_context ? { ...a.relationship_context } : {},
@@ -224,6 +236,9 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
           id: a.id,
           traits: a.traits,
           hidden_agenda: a.hidden_agenda,
+          motivations: a.motivations || [],
+          current_goal: a.current_goal || '',
+          beliefs: a.beliefs || [],
           emotions: a.emotions,
           relationships: a.relationships,
           relationship_context: a.relationship_context,
@@ -284,6 +299,9 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
       id: `Character_${agents.length + 1}`,
       traits: '',
       hidden_agenda: '',
+      motivations: [],
+      current_goal: '',
+      beliefs: [],
       relationship_context: {},
       emotions: { tension: 0.5, affection: 0.5, energy: 0.5, suspicion: 0.5 },
       llm_config: { ...DEFAULT_CONFIG },
@@ -496,6 +514,33 @@ export function ConfigModal({ isOpen, onClose, onSave, onTest, testResults, curr
                       value={ag.hidden_agenda}
                       onChange={(e) => mutate(i, 'hidden_agenda', e.target.value)}
                       placeholder="Agenda..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label>🧭 Everyday Motivations</label>
+                    <textarea
+                      value={(ag.motivations || []).join('\n')}
+                      onChange={(e) => mutate(i, 'motivations', e.target.value.split('\n').map(v => v.trim()).filter(Boolean))}
+                      placeholder="Values, needs, habits, or worries; one per line"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label>🎯 Starting Immediate Goal</label>
+                    <textarea
+                      value={ag.current_goal || ''}
+                      onChange={(e) => mutate(i, 'current_goal', e.target.value)}
+                      placeholder="A modest short-term want, such as finishing dinner or avoiding an awkward topic"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <label>🧠 Starting Beliefs</label>
+                    <textarea
+                      value={(ag.beliefs || []).join('\n')}
+                      onChange={(e) => mutate(i, 'beliefs', e.target.value.split('\n').map(v => v.trim()).filter(Boolean))}
+                      placeholder="What this character believes at the start; these can be mistaken"
                       rows={2}
                     />
                   </div>

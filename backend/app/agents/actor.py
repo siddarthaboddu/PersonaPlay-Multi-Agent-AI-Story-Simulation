@@ -14,14 +14,13 @@ spoken line is conditioned on the private thought within the same pass, which is
 what keeps turn latency at ~2-3s. Do not reintroduce a separate background
 monologue call — the old `_generate_monologue` was removed for this reason.
 """
-import random
 import re
+from typing import Literal
 
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
-from app.agents.beats import get_beat
 from app.agents.llm import compress_history, get_model
 from app.models.state import AgentState, OrchestratorState
 from app.services.memory import add_memory, retrieve_memories
@@ -123,6 +122,16 @@ class ActorOutput(BaseModel):
             "you are holding) to the person you addressed. Do not set this true for ordinary conversation."
         )
     )
+    current_goal: str | None = Field(default=None, description="A modest immediate goal for the next few exchanges. Keep the existing goal unless it was achieved or events changed it.")
+    current_attention: str | None = Field(default=None, description="What you are paying attention to right now. Keep it brief.")
+    belief_update: str | None = Field(default=None, description="One concise, tentative belief formed or changed because of this exchange. Null if nothing changed. Separate observation from inference.")
+    belief_to_revise: str | None = Field(default=None, description="If the new exchange clearly disproves or changes one of your listed beliefs, copy that exact old belief here; otherwise null.")
+    emotion_drift: dict | None = Field(default=None, description="Small event-grounded changes to tension, affection, energy, and suspicion, each between -0.12 and 0.12. Use zero when unchanged; do not escalate without evidence.")
+    scene_tension_delta: float = Field(default=0.0, description="Change to overall scene tension caused by this exchange, from -0.08 to 0.08. Raise it only for a meaningful conflict or revelation; let it fall when things ease. Usually zero.")
+    social_action: Literal["respond", "interject", "stay_silent"] = Field(
+        default="respond",
+        description="Choose stay_silent only when you have no natural contribution or your personality gives you a reason to hold back. A direct question or human-authored line requires a response.",
+    )
 
 
 async def actor_node(state: OrchestratorState) -> OrchestratorState:
@@ -135,8 +144,6 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
         return state
 
     turn_num = state.scene.turn_count
-    beat = get_beat(turn_num)
-    is_phased = getattr(state.scene, "phases_enabled", False)
     print(f"[Actor] '{speaker}' generating (turn {turn_num}).")
 
     # ── 1. Chat history compression ───────────────────────────────────────────
@@ -168,7 +175,7 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
 
     # ── 3. Retrieve episodic memory for this speaker ─────────────────────────
     memory_query = last_utterance or story
-    memories = await retrieve_memories(speaker, memory_query, k_insights=2, k_observations=2)
+    memories = await retrieve_memories(speaker, memory_query, k_insights=2, k_observations=2, k_beliefs=2)
 
     # ── 4. Build the psychological prompt ────────────────────────────────────
     traits = agent.traits or "Just a normal person."
@@ -202,21 +209,25 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
         f"Location: {state.scene.world_state.location}\n"
         f"Lighting: {state.scene.world_state.lighting}"
     )
-
-    # Phase instruction
-    phase_line = (
-        f"Narrative Beat: {beat}\nAct within this beat."
-        if is_phased
-        else "No scripted structure. React naturally to what just happened."
-    )
+    perceivable_props = [
+        prop for prop in state.scene.world_state.props
+        if prop.visibility == "visible" or prop.owner == speaker
+    ]
+    if perceivable_props:
+        props_text = "\n".join(
+            f"- {prop.id}: {prop.description} (held by {prop.owner})"
+            for prop in perceivable_props
+        )
+        world_context += f"\nObjects you can see or are carrying:\n{props_text}"
 
     rules_text = (
         "GROUND RULES:\n"
         "- Speak as a real human, NOT a stage character. No 'audience', no 'scene', no stage directions.\n"
-        "- Direct every word at the person you are talking to. Do NOT monologue your own agenda.\n"
-        "- If they asked you a direct question, answer it. Do NOT dodge with tea/snacks/changing the subject.\n"
-        "- Length follows emotional intensity, not a quota. Short reactions are valid and preferred when natural.\n"
-        "- Preserve your character's speech quirks, vocabulary, and verbal tics."
+        "- Respond when appropriate, but you may ask a follow-up, address another person, briefly interrupt, or let a small topic pass. Do not force a plot twist every turn.\n"
+        "- Answer direct questions honestly or evade only when your character has a clear reason. Avoid unrelated subject changes.\n"
+        "- Length follows emotional intensity, not a quota. A short reaction, question, gesture, or silence can be natural.\n"
+        "- Preserve speech quirks, vocabulary, habits, and boundaries. Do not repeat facts everyone already knows.\n"
+        "- Keep ordinary needs and immediate goals active alongside any hidden agenda. Do not treat every exchange as a dramatic beat."
     )
 
     # Conversational anchoring
@@ -231,7 +242,7 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
     elif last_spoken_by and last_utterance:
         immediate_anchor = (
             f"{last_spoken_by} just said: \"{last_utterance}\"\n"
-            "Respond to THAT. Do not change the subject."
+            "Treat this as the latest conversational context. Reply directly if you have something natural to say; you may also follow an earlier thread, address someone else, or stay quiet when that fits. Do not invent an unrelated dramatic turn."
         )
     else:
         immediate_anchor = "This is the opening of the scene. Speak first."
@@ -242,6 +253,22 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
 
 --- WHO YOU ARE ---
 {traits}
+
+--- WHAT MATTERS TO YOU ---
+{chr(10).join('- ' + item for item in agent.motivations) or '- No explicit long-term motivations; act from your personality and immediate circumstances.'}
+
+--- WHAT YOU WANT RIGHT NOW ---
+{agent.current_goal or 'Choose a modest, ordinary short-term goal that fits the moment.'}
+
+--- WHAT YOU CURRENTLY BELIEVE ---
+{chr(10).join('- ' + item for item in agent.beliefs[-8:]) or '- No settled beliefs yet.'}
+These are fallible interpretations, not objective facts. Update or discard them when new evidence warrants it.
+
+--- WHAT HAS YOUR ATTENTION ---
+{agent.current_attention or 'Nothing specific.'}
+
+--- HOW YOU FEEL RIGHT NOW ---
+Tension {agent.emotions.tension:.2f}, affection {agent.emotions.affection:.2f}, energy {agent.emotions.energy:.2f}, suspicion {agent.emotions.suspicion:.2f}.
 
 --- WHERE YOU ARE ---
 {world_context}
@@ -264,9 +291,6 @@ async def actor_node(state: OrchestratorState) -> OrchestratorState:
 --- HOW YOU SHOULD SPEAK ---
 {rules_text}
 
---- PACING ---
-{phase_line}
-
 --- LONG-TERM MEMORY ---
 {memories}
 
@@ -277,6 +301,8 @@ Generate ONE JSON object matching this schema:
     # ── 5. Generate, repair, and apply side-effects ──────────────────────────
     speaker_mono = "..."
     dialogue = ""
+    belief_update = None
+    belief_to_revise = None
     is_gossip = False
     gossip_target_clean = ""
     # Always clear any inherited value so a turn with no leak cannot inherit the
@@ -299,6 +325,24 @@ Generate ONE JSON object matching this schema:
 
         speaker_mono = parsed.get("thought") or "..."
         dialogue = parsed.get("dialogue") or "..."
+        is_silent = (
+            parsed.get("social_action") == "stay_silent"
+            and not is_manual_reply
+            and bool(last_spoken_by)
+        )
+        if is_silent:
+            dialogue = ""
+        if parsed.get("current_goal"):
+            agent.current_goal = str(parsed["current_goal"]).strip()[:240]
+        if parsed.get("current_attention"):
+            agent.current_attention = str(parsed["current_attention"]).strip()[:240]
+        if parsed.get("belief_update"):
+            belief_update = str(parsed["belief_update"]).strip()[:300]
+            belief_to_revise = parsed.get("belief_to_revise")
+            if belief_to_revise in agent.beliefs:
+                agent.beliefs.remove(belief_to_revise)
+            if belief_update and belief_update not in agent.beliefs:
+                agent.beliefs = (agent.beliefs + [belief_update])[-12:]
 
         # ── 6. Lexical relevance repair ───────────────────────────────────────
         # If the user spoke manually and the reply ignores them entirely, force
@@ -346,16 +390,27 @@ Generate ONE JSON object matching this schema:
             print(f"[Actor] ECS: Scene moved to {parsed['move_to']}")
 
         # ── 10. Emotion & relationship drift ───────────────────────────────────
-        urgency = min(1.0, turn_num / 20.0)
-        agent.emotions.energy = max(0.0, agent.emotions.energy - random.uniform(0.01, 0.04))
-        agent.emotions.tension = max(
-            0.0, min(1.0, agent.emotions.tension + random.uniform(0.0, 0.1) * urgency)
-        )
-        agent.emotions.suspicion = max(
-            0.0, min(1.0, agent.emotions.suspicion + random.uniform(-0.02, 0.08))
-        )
+        emotion_drift = parsed.get("emotion_drift")
+        if isinstance(emotion_drift, dict):
+            for metric in ("tension", "affection", "energy", "suspicion"):
+                delta = emotion_drift.get(metric)
+                if isinstance(delta, (int, float)):
+                    current = getattr(agent.emotions, metric)
+                    bounded_delta = max(-0.12, min(0.12, float(delta)))
+                    setattr(agent.emotions, metric, round(max(0.0, min(1.0, current + bounded_delta)), 3))
 
-        target_name = parsed.get("addressed_to")
+        raw_scene_delta = parsed.get("scene_tension_delta", 0.0)
+        if isinstance(raw_scene_delta, (int, float)):
+            scene_delta = max(-0.08, min(0.08, float(raw_scene_delta)))
+            state.scene.narrative_tension = round(max(0.0, min(1.0, state.scene.narrative_tension + scene_delta)), 3)
+
+        target_name = None if is_silent else parsed.get("addressed_to")
+        agent.last_addressee = (
+            target_name.strip()
+            if isinstance(target_name, str) and target_name.strip() in state.agents
+            else None
+        )
+        agent.last_spoke_turn = turn_num
         drift = parsed.get("relationship_drift")
         if target_name and isinstance(drift, dict):
             target_clean = target_name.strip()
@@ -398,7 +453,15 @@ Generate ONE JSON object matching this schema:
                         print(f"[Actor] '{speaker}' tried to confide to '{target_clean}', but nothing new transferred.")
 
         # ── 12. Store episodic observation ────────────────────────────────────
-        await add_memory(speaker, dialogue, memory_type="observation", turn=turn_num)
+        if dialogue:
+            await add_memory(speaker, dialogue, memory_type="event", turn=turn_num)
+        if belief_update:
+            belief_memory = (
+                f"Revised belief: {belief_to_revise} -> {belief_update}"
+                if belief_to_revise
+                else belief_update
+            )
+            await add_memory(speaker, belief_memory, memory_type="belief", turn=turn_num)
 
     except Exception as e:
         print(f"[Actor] Model error during dialogue/ECS: {e}")
@@ -414,7 +477,8 @@ Generate ONE JSON object matching this schema:
     new_history.append(f"[{speaker}'s Thought]: {speaker_mono}")
     if is_gossip and gossip_target_clean:
         new_history.append(f"[GOSSIP LEAK]: 🤫 {speaker} confided a secret to {gossip_target_clean}!")
-    new_history.append(dialogue)
+    if dialogue:
+        new_history.append(dialogue)
     state.chat_history = new_history
 
     print(f"[Actor] '{speaker}' completed turn {turn_num}.")

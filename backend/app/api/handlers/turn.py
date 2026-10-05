@@ -48,80 +48,116 @@ async def handle_next_turn(
                     print(f"[Turn] Warning: new_state is not OrchestratorState ({type(new_state)})")
                     return
 
-                # 1. Append only the NEW messages (preserving Director injections in between)
-                new_lines = new_state.chat_history[len(snap.chat_history):]
-                sim.state.chat_history.extend(new_lines)
-                if len(sim.state.chat_history) > settings.history_window_size:
-                    sim.state.chat_history = sim.state.chat_history[-settings.history_window_size:]
-                
-                # 2. Update next_speaker and turn_count
-                sim.state.next_speaker = new_state.next_speaker
-                sim.state.scene.turn_count = new_state.scene.turn_count
+                scene_tension_delta = max(
+                    -0.08,
+                    min(0.08, new_state.scene.narrative_tension - snap.scene.narrative_tension),
+                )
 
-                # Manual-reply mode is consumed by this completed turn. Do not
-                # let a later autonomous turn inherit the user's old instruction.
-                if snap.manual_reply_content:
-                    sim.state.manual_reply_speaker = None
-                    sim.state.manual_reply_content = None
+                async with sim.lock:
+                    # Preserve live director actions made while the model ran.
+                    new_lines = new_state.chat_history[len(snap.chat_history):]
+                    sim.state.chat_history.extend(new_lines)
+                    if len(sim.state.chat_history) > settings.history_window_size:
+                        sim.state.chat_history = sim.state.chat_history[-settings.history_window_size:]
 
-                # gossip_target is a one-shot per-turn signal. The actor already
-                # resets it on its own copy each turn, but clear the live copy
-                # too so a retake/rewind can never resurrect a stale leak.
-                sim.state.gossip_target = None
+                    turn_delta = new_state.scene.turn_count - snap.scene.turn_count
+                    sim.state.next_speaker = new_state.next_speaker
+                    sim.state.scene.turn_count += turn_delta
+                    sim.state.scene.narrative_tension = round(max(
+                        0.0,
+                        min(1.0, sim.state.scene.narrative_tension + scene_tension_delta),
+                    ), 3)
 
-                # 3. Merge Agent updates.
-                #
-                # This MUST copy every field the actor node mutates, not just a
-                # hand-picked few. The graph works on its own deep copy, so any
-                # field omitted here is silently discarded when that copy is
-                # thrown away. Previously only `emotions` and `relationships`
-                # survived, which silently killed two features:
-                #   * `last_emote`   — emotes never reached the UI (always None)
-                #   * `known_secrets` — the whole gossip engine reset every turn
-                #
-                # `pending_whisper` is deliberately excluded: it is a one-shot
-                # directive owned by the Director, and turn.py already clears it
-                # on the live agent once the speaker has consumed it.
-                for aid, ag in new_state.agents.items():
-                    if aid in sim.state.agents:
+                    if snap.manual_reply_content and sim.state.manual_reply_content == snap.manual_reply_content:
+                        sim.state.manual_reply_speaker = None
+                        sim.state.manual_reply_content = None
+                    sim.state.gossip_target = None
+
+                    # Apply actor changes as deltas so concurrent director
+                    # slider edits remain authoritative while the turn runs.
+                    for aid, ag in new_state.agents.items():
+                        if aid not in sim.state.agents or aid not in snap.agents:
+                            continue
                         live = sim.state.agents[aid]
-                        live.emotions = ag.emotions
-                        live.relationships = ag.relationships
-                        live.last_emote = ag.last_emote
-                        live.known_secrets = ag.known_secrets
-                        live.traits = ag.traits
-                        live.hidden_agenda = ag.hidden_agenda
-                        live.relationship_context = ag.relationship_context
+                        old = snap.agents[aid]
+                        for metric in ("tension", "affection", "energy", "suspicion"):
+                            delta = getattr(ag.emotions, metric) - getattr(old.emotions, metric)
+                            value = getattr(live.emotions, metric) + delta
+                            setattr(live.emotions, metric, max(0.0, min(1.0, round(value, 3))))
 
-                # 4. Selective World Update: Prop transfer and Location change
-                for p_new in new_state.scene.world_state.props:
-                    for p_curr in sim.state.scene.world_state.props:
-                        if p_new.id == p_curr.id and p_new.owner != p_curr.owner:
-                            p_curr.owner = p_new.owner
-                            break
-                if new_state.scene.world_state.location != snap.scene.world_state.location:
-                    sim.state.scene.world_state.location = new_state.scene.world_state.location
+                        for target, rel_new in ag.relationships.items():
+                            rel_old = old.relationships.get(target)
+                            if rel_old is None:
+                                if target not in live.relationships:
+                                    live.relationships[target] = rel_new.model_copy(deep=True)
+                                continue
+                            rel_live = live.relationships.get(target)
+                            if rel_live is None:
+                                continue
+                            for metric in ("trust", "affinity", "fear", "dominance"):
+                                delta = getattr(rel_new, metric) - getattr(rel_old, metric)
+                                value = getattr(rel_live, metric) + delta
+                                setattr(rel_live, metric, max(0.0, min(1.0, round(value, 3))))
 
-                # 5. Extract actual speaker, monologue, and dialogue
-                monologue = "(Thinking…)"
-                dialogue = "…"
-                for line in new_lines:
-                    if "'s Thought]:" in line:
-                        monologue = line.split("]:", 1)[-1].strip()
-                    elif ":" in line:
-                        dialogue = line
+                        if ag.last_emote != old.last_emote:
+                            live.last_emote = ag.last_emote
+                        for secret in ag.known_secrets:
+                            if secret not in old.known_secrets and secret not in live.known_secrets:
+                                live.known_secrets.append(secret)
+                        if ag.current_goal != old.current_goal:
+                            live.current_goal = ag.current_goal
+                        if ag.current_attention != old.current_attention:
+                            live.current_attention = ag.current_attention
+                        for belief in old.beliefs:
+                            if belief not in ag.beliefs and belief in live.beliefs:
+                                live.beliefs.remove(belief)
+                        for belief in ag.beliefs:
+                            if belief not in old.beliefs and belief not in live.beliefs:
+                                live.beliefs.append(belief)
+                        live.beliefs = live.beliefs[-12:]
+                        if ag.last_addressee != old.last_addressee:
+                            live.last_addressee = ag.last_addressee
+                        if ag.last_spoke_turn != old.last_spoke_turn:
+                            live.last_spoke_turn = ag.last_spoke_turn
 
-                actual_speaker = None
-                if dialogue and ":" in dialogue:
-                    cand = dialogue.split(":")[0].strip()
-                    if cand in sim.state.agents:
-                        actual_speaker = cand
-                if not actual_speaker or actual_speaker not in sim.state.agents:
-                    actual_speaker = sim.state.next_speaker
+                    # Commit world changes only when the Director has not edited
+                    # that same value since the snapshot was taken.
+                    for p_new in new_state.scene.world_state.props:
+                        p_old = next((p for p in snap.scene.world_state.props if p.id == p_new.id), None)
+                        p_live = next((p for p in sim.state.scene.world_state.props if p.id == p_new.id), None)
+                        if p_old and p_live and p_new.owner != p_old.owner and p_live.owner == p_old.owner:
+                            p_live.owner = p_new.owner
+                    if (
+                        new_state.scene.world_state.location != snap.scene.world_state.location
+                        and sim.state.scene.world_state.location == snap.scene.world_state.location
+                    ):
+                        sim.state.scene.world_state.location = new_state.scene.world_state.location
 
-                # Clear consumed whisper for the speaker
-                if actual_speaker in sim.state.agents:
-                    sim.state.agents[actual_speaker].pending_whisper = None
+                    # Extract actual speaker, monologue, and dialogue.
+                    monologue = "(Thinking…)"
+                    dialogue = ""
+                    for line in new_lines:
+                        if "'s Thought]:" in line:
+                            monologue = line.split("]:", 1)[-1].strip()
+                        elif ":" in line:
+                            dialogue = line
+
+                    actual_speaker = new_state.next_speaker
+                    if dialogue and ":" in dialogue:
+                        candidate = dialogue.split(":", 1)[0].strip()
+                        if candidate in sim.state.agents:
+                            actual_speaker = candidate
+                    if not actual_speaker or actual_speaker not in sim.state.agents:
+                        actual_speaker = sim.state.next_speaker
+                    # Clear only the whisper this turn consumed. Preserve a new
+                    # whisper sent while generation was in flight.
+                    if (
+                        actual_speaker in sim.state.agents
+                        and actual_speaker in snap.agents
+                        and sim.state.agents[actual_speaker].pending_whisper
+                        == snap.agents[actual_speaker].pending_whisper
+                    ):
+                        sim.state.agents[actual_speaker].pending_whisper = None
 
                 # 1. Broadcast monologue
                 await manager.broadcast({
@@ -141,14 +177,15 @@ async def handle_next_turn(
                 gossip_note = next((line for line in new_lines if "[GOSSIP LEAK]" in line), None)
 
                 # 2. Broadcast dialogue
-                await manager.broadcast({
-                    "type": "dialogue",
-                    "agent_id": actual_speaker,
-                    "content": dialogue,
-                    "emote": emote,
-                    "is_gossip": is_gossip,
-                    "gossip_note": gossip_note,
-                })
+                if dialogue:
+                    await manager.broadcast({
+                        "type": "dialogue",
+                        "agent_id": actual_speaker,
+                        "content": dialogue,
+                        "emote": emote,
+                        "is_gossip": is_gossip,
+                        "gossip_note": gossip_note,
+                    })
 
                 if is_gossip and gossip_note:
                     await manager.broadcast({
@@ -166,9 +203,6 @@ async def handle_next_turn(
                 })
 
                 # 4. Update narrative tension and broadcast vitals
-                sim.state.scene.narrative_tension = min(
-                    sim.state.scene.narrative_tension + 0.05, 1.0
-                )
                 energy = (
                     sim.state.agents[actual_speaker].emotions.energy
                     if actual_speaker in sim.state.agents
@@ -181,32 +215,33 @@ async def handle_next_turn(
                         "tension": sim.state.scene.narrative_tension,
                         "energy": energy,
                         "turn_count": sim.state.scene.turn_count,
-                        "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
                     },
                 })
 
                 # 5. Deep Memory Reflection: synthesize higher-level insights asynchronously
                 turn_num = sim.state.scene.turn_count
-                from app.agents.beats import get_beat
-                current_beat = get_beat(turn_num)
-                is_dramatic = any(k in current_beat.upper() for k in ["REVELATION", "CRISIS", "CLIMAX", "BREAKING POINT", "POWER SHIFT"])
-                should_reflect = (turn_num > 0 and turn_num % 4 == 0) or is_dramatic
+                high_tension_event = (
+                    sim.state.scene.narrative_tension >= 0.75
+                    and scene_tension_delta >= 0.04
+                )
+                should_reflect = (turn_num > 0 and turn_num % 4 == 0) or high_tension_event
 
                 if should_reflect and actual_speaker in sim.state.agents:
                     # Snapshot everything the background task needs NOW, then
                     # close over those locals. Do not read sim.state from inside
                     # the coroutine — it will have moved on by the time it runs.
-                    _aid = actual_speaker
-                    _ag = sim.state.agents[actual_speaker].model_copy(deep=True)
-                    _tc = turn_num
-                    _beat = current_beat
-                    _chat = list(sim.state.chat_history)
+                    async with sim.lock:
+                        _aid = actual_speaker
+                        _ag = sim.state.agents[actual_speaker].model_copy(deep=True)
+                        _tc = turn_num
+                        _scene_context = f"{sim.state.scene.active_scene}; tension {sim.state.scene.narrative_tension:.2f}"
+                        _chat = list(sim.state.chat_history)
 
                     async def run_reflection_bg():
                         try:
                             from app.agents.reflection import generate_reflections
                             new_insights = await generate_reflections(
-                                _aid, _ag, _chat, _beat, _tc
+                                _aid, _ag, _chat, _scene_context, _tc
                             )
                             for ins in new_insights:
                                 await manager.broadcast({
@@ -220,7 +255,8 @@ async def handle_next_turn(
 
                     asyncio.create_task(run_reflection_bg())
 
-                sim.push_history()
+                async with sim.lock:
+                    sim.push_history()
 
             except asyncio.CancelledError:
                 print("[Turn] Cancelled by user.")
@@ -306,10 +342,8 @@ async def handle_retake_turn(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": sim.state.scene.turn_count,
-            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
         },
     })
 
     # Immediately trigger a fresh AI turn for the re-roll!
     await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
-

@@ -152,7 +152,6 @@ async def test_handle_pause_scene_cancels_task_and_broadcasts():
         world_state=WorldState(location="Living Room", lighting="Warm", props=[]),
         narrative_tension=0.5,
         turn_count=3,
-        phases_enabled=True,
     )
 
     payload = PauseScenePayload(type="pause_scene")

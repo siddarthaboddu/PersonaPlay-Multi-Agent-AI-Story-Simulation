@@ -3,9 +3,8 @@ import { useSimulationContext } from '../../context/useSimulationContext'
 
 export function DirectorPanel() {
   const { 
-    world, vitals, agents, injectChaos, whisperDirective, sendManualDialogue, pause,
+    world, vitals, agents, injectChaos, whisperDirective, sendManualDialogue,
     auto, autoDelay, setAutoPacing, autoCountdown, isProcessing,
-    phasesEnabled, togglePhases
   } = useSimulationContext()
 
   const [target, setTarget] = useState('world')
@@ -36,75 +35,6 @@ export function DirectorPanel() {
       </div>
 
       <div className="pb">
-        {/* Narrative Flow Mode: Human Realism vs Dramatic Scripted Phases */}
-        <div style={{
-          padding: '12px 14px',
-          background: 'var(--s2)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r-sm)',
-          marginBottom: '4px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{
-              fontSize: '11px',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              color: !phasesEnabled ? '#38bdf8' : 'var(--gold)'
-            }}>
-              {!phasesEnabled ? '👤 Human Realism' : '🎭 Dramatic 20-Beat Arc'}
-            </span>
-            <span style={{ fontSize: '10.5px', color: 'var(--t4)', fontStyle: 'italic' }}>
-              {!phasesEnabled ? 'Unscripted Flow' : 'Escalation Curve'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              type="button"
-              onClick={() => togglePhases(false)}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                fontSize: '11.5px',
-                fontFamily: 'var(--font-sans)',
-                fontWeight: !phasesEnabled ? 800 : 600,
-                borderRadius: '8px',
-                border: `1px solid ${!phasesEnabled ? 'rgba(56, 189, 248, 0.5)' : 'var(--border)'}`,
-                background: !phasesEnabled ? 'rgba(56, 189, 248, 0.18)' : 'rgba(0, 0, 0, 0.25)',
-                color: !phasesEnabled ? '#38bdf8' : 'var(--t3)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: !phasesEnabled ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none',
-              }}
-            >
-              👤 Human Mode
-            </button>
-            <button
-              type="button"
-              onClick={() => togglePhases(true)}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                fontSize: '11.5px',
-                fontFamily: 'var(--font-sans)',
-                fontWeight: phasesEnabled ? 800 : 600,
-                borderRadius: '8px',
-                border: `1px solid ${phasesEnabled ? 'rgba(245, 208, 97, 0.5)' : 'var(--border)'}`,
-                background: phasesEnabled ? 'rgba(245, 208, 97, 0.18)' : 'rgba(0, 0, 0, 0.25)',
-                color: phasesEnabled ? 'var(--gold)' : 'var(--t3)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: phasesEnabled ? '0 0 12px rgba(245, 208, 97, 0.2)' : 'none',
-              }}
-            >
-              🎭 20-Beat Arc
-            </button>
-          </div>
-        </div>
-
         {/* Pacing Speed (when Auto Mode is active) */}
         {auto && (
           <div style={{
@@ -286,26 +216,6 @@ export function DirectorPanel() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {auto && (
-              <button
-                type="button"
-                onClick={pause}
-                style={{
-                  padding: '9px 14px',
-                  borderRadius: 9,
-                  border: '1px solid rgba(245, 208, 97, 0.45)',
-                  background: 'rgba(245, 208, 97, 0.15)',
-                  color: 'var(--gold)',
-                  fontWeight: 800,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-                title="Pause simulation"
-              >
-                ⏸ Pause
-              </button>
-            )}
             <button 
               type="submit" 
               style={{

@@ -6,9 +6,7 @@ from app.models.payloads import (
     CheckModelPayload,
     ConfigureScenePayload,
     ForceEmotionPayload,
-    ForceGivePropPayload,
     ForceRelationshipPayload,
-    ForceSceneTensionPayload,
 )
 from app.models.state import AgentState, EmotionVector, ModelConfig, Prop, RelationshipVector
 
@@ -41,6 +39,12 @@ async def handle_configure_scene(
                     id=char_id,
                     hidden_agenda=char.get("hidden_agenda"),
                     traits=char.get("traits"),
+                    motivations=char.get("motivations", []),
+                    starting_goal=char.get("current_goal"),
+                    current_goal=char.get("current_goal"),
+                    current_attention=char.get("current_attention"),
+                    starting_beliefs=char.get("beliefs", []),
+                    beliefs=char.get("beliefs", []),
                     emotions=EmotionVector(
                         **char.get("emotions", {
                             "tension": 0.5, "affection": 0.5,
@@ -63,9 +67,6 @@ async def handle_configure_scene(
                         visibility=p.get("visibility", "visible")
                     ) for p in payload.props
                 ]
-
-            if payload.phases_enabled is not None:
-                sim.state.scene.phases_enabled = payload.phases_enabled
 
             # Ensure next_speaker is valid
             if new_agents:
@@ -114,7 +115,6 @@ async def handle_configure_scene(
                     "tension": sim.state.scene.narrative_tension,
                     "energy": 0.8,
                     "turn_count": 0,
-                    "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
                 },
             })
         except Exception as e:
@@ -151,28 +151,6 @@ async def handle_check_model(
             "message": str(e),
             "agent_id": payload.agent_id,
         })
-
-
-async def handle_force_give_prop(
-    manager: ConnectionManager,
-    sim: SimulationState,
-    payload: ForceGivePropPayload,
-) -> None:
-    async with sim.lock:
-        for p in sim.state.scene.world_state.props:
-            if p.id == payload.prop_id:
-                p.owner = payload.owner
-                break
-        sim.update_last_history()
-
-    await manager.broadcast({
-        "type": "action",
-        "content": f"[DIRECTOR INJECTS]: Forced '{payload.prop_id}' to be owned by {payload.owner}.",
-    })
-    await manager.broadcast({
-        "type": "world_update",
-        "world": sim.state.scene.world_state.model_dump(),
-    })
 
 
 async def handle_force_emotion(
@@ -241,23 +219,5 @@ async def handle_system_reset(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": 0,
-        },
-    })
-async def handle_force_scene_tension(
-    manager: ConnectionManager,
-    sim: SimulationState,
-    payload: ForceSceneTensionPayload,
-) -> None:
-    async with sim.lock:
-        sim.state.scene.narrative_tension = payload.value
-        sim.update_last_history()
-
-    await manager.broadcast({
-        "type": "vitals_update",
-        "vitals": {
-            "scene_name": sim.state.scene.active_scene,
-            "tension": sim.state.scene.narrative_tension,
-            "energy": 0.5,
-            "turn_count": sim.state.scene.turn_count,
         },
     })

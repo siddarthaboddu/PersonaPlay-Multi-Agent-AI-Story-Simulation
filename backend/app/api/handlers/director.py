@@ -1,5 +1,5 @@
 """
-Director-facing handlers: inject chaos commands, rewind turns, export script.
+Director-facing handlers: inject chaos commands and export script.
 """
 import asyncio
 
@@ -9,9 +9,7 @@ from app.models.payloads import (
     DirectorWhisperPayload,
     ExportScriptPayload,
     ManualDialoguePayload,
-    RewindPayload,
 )
-from app.services.image import build_scene_image_url
 
 
 async def handle_director_command(
@@ -21,15 +19,6 @@ async def handle_director_command(
 ) -> None:
     async with sim.lock:
         command = payload.command
-
-        if command.lower().startswith("generate image"):
-            url, prompt = build_scene_image_url(sim.state.scene.world_state)
-            await manager.broadcast({
-                "type": "action",
-                "content": "[DIRECTOR INJECTS]: Generating scene image…",
-            })
-            await manager.broadcast({"type": "image_update", "url": url, "prompt": prompt})
-            return
 
         # Chaos injection
         chaos_msg = f"[DIRECTOR INJECTS]: {command}"
@@ -102,6 +91,9 @@ async def handle_manual_dialogue(
         # actor.py uses it to force the next AI turn to be a reply, not a pivot.
         sim.state.manual_reply_speaker = agent_id
         sim.state.manual_reply_content = raw_text
+        if agent_id in sim.state.agents:
+            sim.state.agents[agent_id].last_addressee = None
+            sim.state.agents[agent_id].last_spoke_turn = sim.state.scene.turn_count
 
         # Choose who replies. Previously this was always `other_agents[0]`,
         # which is correct for a two-hander but ignores the conversation in a
@@ -153,7 +145,6 @@ async def handle_manual_dialogue(
             "tension": sim.state.scene.narrative_tension,
             "energy": 0.8,
             "turn_count": sim.state.scene.turn_count,
-            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
         },
     })
 
@@ -168,71 +159,6 @@ async def handle_manual_dialogue(
         from app.api.handlers.turn import handle_next_turn
         from app.models.payloads import NextTurnPayload
         await handle_next_turn(manager, sim, NextTurnPayload(type="next_turn"))
-
-
-async def handle_rewind_turns(
-    manager: ConnectionManager,
-    sim: SimulationState,
-    payload: RewindPayload,
-) -> None:
-    async with sim.lock:
-        sim.cancel_task()
-        success = sim.restore(payload.turns)
-
-    if not success:
-        await manager.broadcast({
-            "type": "action",
-            "content": "[SYSTEM]: Cannot rewind that far back!",
-        })
-        return
-
-    reconstructed_messages = [
-        {"type": "action", "content": f"[SYSTEM]: ⏪ Rewound {payload.turns} turns."}
-    ]
-    reconstructed_monologues = []
-
-    for line in sim.state.chat_history:
-        if "'s Thought]:" in line:
-            agent_id = line[1:line.find("'s")]
-            content = line.split("]:", 1)[-1].strip()
-            reconstructed_monologues.append({
-                "type": "monologue",
-                "agent_id": agent_id,
-                "content": content,
-            })
-        elif line.startswith("["):
-            reconstructed_messages.append({"type": "action", "content": line})
-        else:
-            agent_id = line.split(":")[0].strip() if ":" in line else None
-            reconstructed_messages.append({
-                "type": "dialogue",
-                "agent_id": agent_id,
-                "content": line,
-            })
-
-    await manager.broadcast({
-        "type": "history_reset",
-        "messages": reconstructed_messages,
-        "monologues": reconstructed_monologues,
-    })
-    await manager.broadcast({
-        "type": "world_update",
-        "world": sim.state.scene.world_state.model_dump(),
-    })
-    await manager.broadcast({
-        "type": "agents_update",
-        "agents": [v.model_dump() for v in sim.state.agents.values()],
-    })
-    await manager.broadcast({
-        "type": "vitals_update",
-        "vitals": {
-            "scene_name": sim.state.scene.active_scene,
-            "tension": sim.state.scene.narrative_tension,
-            "energy": 0.8,
-            "turn_count": sim.state.scene.turn_count,
-            "phases_enabled": getattr(sim.state.scene, "phases_enabled", True),
-        },
-    })
 
 
 async def handle_export_script(

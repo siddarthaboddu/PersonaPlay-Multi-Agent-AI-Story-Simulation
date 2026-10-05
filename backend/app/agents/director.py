@@ -1,88 +1,89 @@
-"""
-Director node — selects who speaks next based on narrative context.
+"""Choose the next person who has a natural reason to speak."""
+from __future__ import annotations
 
-For 2-agent scenes: simple round-robin.
-For 3+ agent scenes: LLM-guided selection to pick the most dramatically
-appropriate next speaker based on recent dialogue.
-"""
-from langchain_core.messages import HumanMessage
+import re
 
-from app.agents.llm import get_model
-from app.models.state import OrchestratorState
+from app.models.state import AgentState, OrchestratorState
+
+
+def _last_utterance(history: list[str], agent_ids: set[str]) -> tuple[str | None, str]:
+    for line in reversed(history):
+        if not line or line.startswith("[") or ":" not in line:
+            continue
+        speaker, _, utterance = line.partition(":")
+        speaker = speaker.strip()
+        if speaker in agent_ids:
+            return speaker, utterance.strip()
+    return None, ""
+
+
+def _candidate_score(agent: AgentState, turn_num: int, utterance: str) -> float:
+    """Score turn entitlement from address, conversational attention, and airtime."""
+    score = max(0, turn_num - agent.last_spoke_turn) * 0.12
+    lowered = utterance.lower()
+
+    # A direct name mention is a strong cue to reply. Word boundaries avoid
+    # treating a name such as "Ann" as present in a word like "announced".
+    if re.search(rf"(?<!\w){re.escape(agent.id.lower())}(?!\w)", lowered):
+        score += 1.25
+
+    attention = (agent.current_attention or "").lower()
+    attention_words = {w for w in re.findall(r"[a-z0-9']+", attention) if len(w) > 3}
+    utterance_words = {w for w in re.findall(r"[a-z0-9']+", lowered) if len(w) > 3}
+    if attention_words and attention_words & utterance_words:
+        score += 0.35
+
+    # Arousal can make someone more likely to jump in; low energy reduces it.
+    score += agent.emotions.tension * 0.2 + agent.emotions.energy * 0.15
+    return score
 
 
 async def director_node(state: OrchestratorState) -> OrchestratorState:
-    """Analyse narrative tension and assign the next speaker."""
-    print(f"[Director] Analyzing state… Turn {state.scene.turn_count}")
+    """Route a reply to an addressed character, otherwise balance the floor."""
     state = state.model_copy(deep=True)
     state.scene.turn_count += 1
-
-    agent_ids = list(state.agents.keys())
+    agent_ids = list(state.agents)
     if not agent_ids:
         return state
 
-    # Find who actually spoke last in chat_history
-    last_speaker = None
-    for line in reversed(state.chat_history):
-        if not line or line.startswith("["):
-            continue
-        if ":" in line:
-            candidate = line.split(":", 1)[0].strip()
-            if candidate in agent_ids:
-                last_speaker = candidate
-                break
-
-    # If no character dialogue exists yet, use designated opening speaker
-    if not last_speaker:
-        if not state.next_speaker or state.next_speaker not in agent_ids:
+    history_speaker, utterance = _last_utterance(state.chat_history, set(agent_ids))
+    if history_speaker is None:
+        if state.next_speaker not in state.agents:
             state.next_speaker = agent_ids[0]
         return state
 
-    other_candidates = [aid for aid in agent_ids if aid != last_speaker]
+    # A character can stay quiet. Track who was selected last independently of
+    # who produced the latest line so silence does not route the floor back to
+    # that same person repeatedly.
+    last_speaker = max(
+        agent_ids,
+        key=lambda agent_id: state.agents[agent_id].last_spoke_turn,
+    )
+    if state.agents[last_speaker].last_spoke_turn < 0:
+        last_speaker = history_speaker
 
-    # A directly named character should always get first right of reply. This
-    # avoids asking the director model to guess when the speaker made it clear.
-    if other_candidates:
-        recent_line = next(
-            (
-                line.split(":", 1)[1].strip()
-                for line in reversed(state.chat_history)
-                if ":" in line and line.split(":", 1)[0].strip() == last_speaker
-            ),
-            "",
-        ).lower()
-        for candidate in other_candidates:
-            if candidate.lower() in recent_line:
-                state.next_speaker = candidate
-                return state
+    candidates = [agent_id for agent_id in agent_ids if agent_id != last_speaker]
+    if not candidates:
+        state.next_speaker = last_speaker
+        return state
 
-    # LLM-guided selection only for 3+ agents (round-robin is fine for 2)
-    if len(agent_ids) > 2 and other_candidates:
-        try:
-            director_agent = state.agents[agent_ids[0]]
-            model = get_model(director_agent.llm_config, creative=False)
-            context = "\n".join(state.chat_history[-5:])
-            prompt = (
-                f"You are the Director. The actors are: {', '.join(agent_ids)}.\n"
-                f"Recent conversation:\n{context}\n"
-                f"'{last_speaker}' just spoke. Who should speak next from {', '.join(other_candidates)}? "
-                f"Respond with ONLY the exact name of the character from the candidate list."
-            )
-            res = await model.ainvoke([HumanMessage(content=prompt)])
-            suggested = res.content.strip()
-            if suggested in other_candidates:
-                state.next_speaker = suggested
-                print(f"[Director] Intelligently selected: {suggested}")
-                return state
-        except Exception as e:
-            print(f"[Director] LLM error (falling back to round-robin): {e}")
+    # Honour the previous character's explicit addressee when there is one.
+    addressed = state.agents[last_speaker].last_addressee
+    if last_speaker == history_speaker and addressed in candidates:
+        state.next_speaker = addressed
+        return state
 
-    # Round-robin next speaker after last_speaker
-    idx = agent_ids.index(last_speaker)
-    state.next_speaker = agent_ids[(idx + 1) % len(agent_ids)]
+    # A one-on-one conversation has only one possible responder. With a group,
+    # choose from relevance, attention and airtime rather than roster order.
+    if len(candidates) == 1:
+        state.next_speaker = candidates[0]
+        return state
 
-    # Final guarantee: next speaker must NOT be the same as last speaker if multiple agents exist
-    if state.next_speaker == last_speaker and other_candidates:
-        state.next_speaker = other_candidates[0]
-
+    state.next_speaker = max(
+        candidates,
+        key=lambda candidate: (
+            _candidate_score(state.agents[candidate], state.scene.turn_count, utterance),
+            -agent_ids.index(candidate),
+        ),
+    )
     return state

@@ -13,7 +13,7 @@ export function MessageFeed() {
   }, [messages])
 
   const visibleMessages = messages.filter(m => {
-    if (m.type === 'dialogue' || m.type === 'image') return true
+    if (m.type === 'dialogue') return true
     if (m.content) {
       if (
         m.content.includes('Triggering AI turn') ||

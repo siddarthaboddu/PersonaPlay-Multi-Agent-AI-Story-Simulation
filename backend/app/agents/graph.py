@@ -55,6 +55,12 @@ def get_initial_state() -> OrchestratorState:
             id=ag["id"],
             traits=ag["traits"],
             hidden_agenda=ag["hidden_agenda"],
+            motivations=ag.get("motivations", []),
+            starting_goal=ag.get("current_goal"),
+            current_goal=ag.get("current_goal"),
+            current_attention=ag.get("current_attention"),
+            starting_beliefs=ag.get("beliefs", []),
+            beliefs=ag.get("beliefs", []),
             emotions=EmotionVector(**ag["emotions"]),
             relationships={
                 target: RelationshipVector(**r_data)
@@ -86,7 +92,6 @@ def get_initial_state() -> OrchestratorState:
             ),
             narrative_tension=0.35,
             turn_count=0,
-            phases_enabled=False,  # Default to authentic direct human conversation
         ),
         agents=agents,
         chat_history=[],

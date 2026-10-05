@@ -79,11 +79,11 @@ def _add(agent_id: str, memory: str, memory_type: str = "observation", turn: int
     )
 
 
-def _retrieve(agent_id: str, query: str, k_insights: int = 2, k_observations: int = 2) -> str:
+def _retrieve(agent_id: str, query: str, k_insights: int = 2, k_observations: int = 2, k_beliefs: int = 2) -> str:
     vs = _get_vectorstore()
     if vs is None:
         return ""
-    total_k = max(6, (k_insights + k_observations) * 2)
+    total_k = max(10, (k_insights + k_observations + k_beliefs) * 3)
     results = vs.similarity_search(
         query, k=total_k, filter={"agent_id": agent_id}
     )
@@ -92,11 +92,15 @@ def _retrieve(agent_id: str, query: str, k_insights: int = 2, k_observations: in
 
     insights = []
     observations = []
+    beliefs = []
     for r in results:
         mtype = r.metadata.get("type", "observation")
         if mtype == "reflection":
             if len(insights) < k_insights and r.page_content not in insights:
                 insights.append(r.page_content)
+        elif mtype == "belief":
+            if len(beliefs) < k_beliefs and r.page_content not in beliefs:
+                beliefs.append(r.page_content)
         else:
             if len(observations) < k_observations and r.page_content not in observations:
                 observations.append(r.page_content)
@@ -104,6 +108,8 @@ def _retrieve(agent_id: str, query: str, k_insights: int = 2, k_observations: in
     sections = []
     if insights:
         sections.append("YOUR SYNTHESIZED INSIGHTS & BELIEFS:\n" + "\n".join(f"- {i}" for i in insights))
+    if beliefs:
+        sections.append("BELIEFS FORMED FROM PAST EXPERIENCES (these may be mistaken):\n" + "\n".join(f"- {i}" for i in beliefs))
     if observations:
         sections.append("PAST MOMENTS RECALLED:\n" + "\n".join(f"- {o}" for o in observations))
 
@@ -134,11 +140,11 @@ async def add_reflection(agent_id: str, reflection: str, turn: int = 0) -> None:
         await asyncio.to_thread(_add, agent_id, reflection, "reflection", turn)
 
 
-async def retrieve_memories(agent_id: str, query: str, k_insights: int = 2, k_observations: int = 2) -> str:
+async def retrieve_memories(agent_id: str, query: str, k_insights: int = 2, k_observations: int = 2, k_beliefs: int = 2) -> str:
     """Retrieve hybrid past memories and synthesized insights (async, thread-safe)."""
     try:
         async with _lock:
-            return await asyncio.to_thread(_retrieve, agent_id, query, k_insights, k_observations)
+            return await asyncio.to_thread(_retrieve, agent_id, query, k_insights, k_observations, k_beliefs)
     except Exception as e:
         print(f"[Memory] Retrieval error (non-fatal): {e}")
         return ""

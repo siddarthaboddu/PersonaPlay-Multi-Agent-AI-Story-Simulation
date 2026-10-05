@@ -8,13 +8,9 @@ export function Topbar({ onOpenConfig }) {
     stopScene,
     auto, 
     setAuto, 
-    pause,
     isProcessing,
     autoCountdown,
-    turnCount, 
-    currentBeat,
-    phasesEnabled,
-    togglePhases 
+    turnCount,
   } = useSimulationContext()
 
   return (
@@ -81,25 +77,6 @@ export function Topbar({ onOpenConfig }) {
           )}
         </button>
 
-        {auto && (
-          <button
-            className="cb"
-            onClick={pause}
-            title="Pause simulation to manually speak or direct"
-            style={{
-              background: 'rgba(245, 166, 35, 0.18)',
-              borderColor: 'rgba(245, 166, 35, 0.4)',
-              color: 'var(--amber)',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <span>⏸ Pause</span>
-          </button>
-        )}
-
         {/* Hard stop: cancels the in-flight turn and halts all automation. */}
         {(isProcessing || auto) && (
           <button
@@ -122,42 +99,6 @@ export function Topbar({ onOpenConfig }) {
       </div>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button
-          onClick={() => togglePhases(!phasesEnabled)}
-          title={phasesEnabled 
-            ? "Dramatic Phases Active: Click to switch to Human Realism Mode (Natural, unscripted conversation)" 
-            : "Human Realism Mode Active: Click to enable 20-Phase Dramatic Arc"}
-          style={{ 
-            fontSize: '11px', 
-            color: phasesEnabled ? 'var(--amber)' : '#38bdf8', 
-            background: phasesEnabled ? 'rgba(245,166,35,0.08)' : 'rgba(56,189,248,0.12)', 
-            border: `1px solid ${phasesEnabled ? 'rgba(245,166,35,0.3)' : 'rgba(56,189,248,0.45)'}`, 
-            padding: '4px 10px', 
-            borderRadius: '12px', 
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: phasesEnabled ? 'none' : '0 0 10px rgba(56,189,248,0.15)',
-          }}
-        >
-          {phasesEnabled ? (
-            <>
-              <span style={{ opacity: 0.7, textTransform: 'uppercase', fontSize: '9px' }}>Phase</span>
-              <span>{currentBeat ? currentBeat[2] : 'COLD OPEN'}</span>
-              <span style={{ opacity: 0.5, fontSize: '9px', marginLeft: 2 }} title="Click to switch to Human Realism Mode">⇄ Human Mode</span>
-            </>
-          ) : (
-            <>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
-              <span>👤 Human Mode: ON</span>
-              <span style={{ opacity: 0.5, fontSize: '9px', marginLeft: 2 }} title="Click to switch to Dramatic 20-Phase Arc">⇄ 20-Beat Arc</span>
-            </>
-          )}
-        </button>
-
         <div className="turn-badge">Turn {turnCount}</div>
         <div className="ws-badge">
           <div className={`wdot ${isConnected ? 'on' : 'off'}`}/>

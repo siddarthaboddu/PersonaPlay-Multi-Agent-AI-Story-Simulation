@@ -156,6 +156,17 @@ export function BackstagePanel() {
                   </div>
                 )}
 
+                {(ag.current_goal || ag.current_attention || ag.beliefs?.length > 0) && (
+                  <div style={{ margin: '8px 0 12px', padding: '8px 10px', borderRadius: 8, background: 'rgba(167, 139, 250, 0.08)', border: '1px solid rgba(167, 139, 250, 0.18)', fontSize: 11.5, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--purple)', marginBottom: 4 }}>Current Priorities &amp; Beliefs</div>
+                    {ag.current_goal && <div><b>Wants:</b> {ag.current_goal}</div>}
+                    {ag.current_attention && <div><b>Notices:</b> {ag.current_attention}</div>}
+                    {ag.beliefs?.slice(-2).map((belief, beliefIndex) => (
+                      <div key={beliefIndex}><b>Believes:</b> {belief}</div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Emotional Vitals */}
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t4)', marginBottom: 6 }}>

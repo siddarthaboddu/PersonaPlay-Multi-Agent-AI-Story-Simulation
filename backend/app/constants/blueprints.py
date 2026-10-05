@@ -338,6 +338,28 @@ STARTING_BLUEPRINTS = [
 ]
 
 
+STARTER_CHARACTER_DETAILS = {
+    "Maya": (["Surprise Liam without making the evening feel like a performance", "Keep shared spending fair"], "Get Liam to agree on dinner without revealing the concert tickets."),
+    "Liam": (["Share decisions fairly with Maya", "Make room for small comforts"], "Find a dinner option that feels satisfying without turning it into a fight."),
+    "Chloe": (["Make a new place feel like home", "Keep moving day playful"], "Get one useful thing unpacked before getting distracted."),
+    "Sam": (["Make the apartment functional", "Avoid looking more lost than he feels"], "Get the bed frame assembled with the tools at hand."),
+    "Zoe": (["Enjoy a rare quiet night with Leo", "Avoid waking the roommates"], "Get the pancakes cooked without making a mess."),
+    "Leo": (["Keep the late-night mood easy", "Avoid being teased about the burnt pancake"], "Get the next pancake right and keep Zoe away from the toaster."),
+    "Hannah": (["Stay close to her friends", "Get out of studying for a little while"], "Figure out who Lucas is texting without making it feel like an interrogation."),
+    "Lucas": (["Protect the friendship with Hannah", "Work up to saying what he means"], "Keep the conversation comfortable while deciding whether to ask Hannah to the formal."),
+    "Emma": (["Keep the road trip fun", "Avoid admitting she misjudged the fuel stop"], "Get back on the road without letting the playlist argument take over."),
+    "Noah": (["Keep everyone safe", "Enjoy the trip without turning it into a blame game"], "Find the nearest gas station and keep Emma from feeling cornered."),
+    "Mia": (["Win the game", "Keep competition playful"], "Get Julian to make one mistake before the race ends."),
+    "Julian": (["Avoid dish duty", "Look calm even under pressure"], "Hold the lead and avoid rubbing it in too much."),
+}
+
+for _blueprint in STARTING_BLUEPRINTS:
+    for _agent in _blueprint["agents"]:
+        _motivations, _goal = STARTER_CHARACTER_DETAILS.get(_agent["id"], ([], None))
+        _agent.setdefault("motivations", _motivations)
+        _agent.setdefault("current_goal", _goal)
+
+
 def get_starting_blueprints() -> list[dict]:
     """Returns the catalog of starter scenarios."""
     return STARTING_BLUEPRINTS

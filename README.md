@@ -6,7 +6,7 @@ A human participant can step into the simulation in two ways:
 1. **The Director**: Wielding god-mode powers to inject plot twists, whisper confidential in-ear directives to specific actors, adjust interpersonal tension, rewind turns, or retake lines.
 2. **The Actor (Direct Roleplay)**: Stepping into the shoes of any character on stage and speaking directly into the scene, engaging in real-time conversational back-and-forth with AI companions.
 
-Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay features an asynchronous additive concurrency model ensuring human interventions merge seamlessly with background LLM generation without race conditions or overwriting user actions.
+Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay runs LLM turns in background tasks and merges actor changes against a copied state snapshot, preserving concurrent director edits where possible.
 
 ---
 
@@ -42,16 +42,17 @@ Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay features an
 - **Qualitative Social Context**: Retains qualitative backstory and nuances (`relationship_context`) such as *"Longtime friend; teasing is normal, but honesty matters"*.
 - **Live Dynamic Drift & Director Override**: Stances shift naturally based on dialogue sentiment and can be manually adjusted via sliders in the Backstage panel.
 
+### 🧠 Character Continuity & Group Turn-Taking
+- Characters retain editable everyday motivations and a starting goal, then update their immediate goal, attention, and tentative beliefs as events unfold.
+- In group scenes, the turn selector prioritizes explicit addressees, then considers name mentions, attention, emotional energy, and who has had less floor time. Two-character scenes naturally have one responder.
+- Characters can stay quiet when they have no natural contribution. Character emotions and scene tension change only when the actor model proposes a small, bounded change in response to the exchange.
+- Memory stores spoken events, tentative beliefs, and synthesized reflections as separate types. Beliefs are treated as fallible interpretations, not objective scene facts.
+
 ### 7. 💡 Two-Tier Episodic Memory & Reflection Engine
 - **ChromaDB Vector Store**: Combines verbatim episodic quotes (`observation`) with synthesized deductions (`reflection`) using HuggingFace sentence embeddings.
-- **Background Deduction Synthesis**: Periodically synthesizes tactical deductions and character beliefs every 4 turns or during dramatic high-tension beats, surfacing them in the Backstage panel and injecting them into character context.
+- **Background Deduction Synthesis**: Periodically synthesizes tactical deductions and character beliefs every 4 turns or when scene tension is high, surfacing them in the Backstage panel and injecting them into character context.
 
-### 8. 🎭 Narrative Modes: 20-Beat Arc vs. Unscripted Human Mode
-- **👤 Human Mode (Direct Convo)**: Unscripted, natural conversations without forced climaxes or artificial escalation.
-- **🎭 20-Beat Dramatic Arc**: Guided dramatic structure evolving across five acts (Cold Open $\rightarrow$ First Friction $\rightarrow$ Revelation $\rightarrow$ Crisis Point $\rightarrow$ Climax $\rightarrow$ Epilogue).
-- **1-Click Switching**: Toggle seamlessly at any time from the Topbar or Director console.
-
-### 9. 🛋️ Grounded Scenario Presets & YAML Blueprints
+### 8. 🛋️ Grounded Scenario Presets & YAML Blueprints
 - Includes 6 rich slice-of-life starting scenarios:
   1. 🛋️ **Sunday Living Room: The Takeout Debate** (*Default* — Maya & Liam debating Thai food vs. mac-and-cheese).
   2. 📦 **First Apartment: Unpacking & Cold Pizza** (Chloe & Sam assembling flat-pack furniture).
@@ -61,14 +62,14 @@ Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay features an
   6. 🎮 **Couch Co-Op: The Dish-Duty Rematch** (Mia & Julian in a split-screen kart showdown).
 - Complete Blueprint Editor with preset pills, collapsible props, and full YAML import/export.
 
-### 10. 🏃 Automated Turn Mode & Adaptive Pacing
+### 9. 🏃 Automated Turn Mode & Adaptive Pacing
 - **Cadence Presets**: Run continuous auto-play with ⚡ **Fast (2.0s)**, 🎬 **Normal (3.5s)**, or ☕ **Relaxed (5.0s)** turn intervals.
 - **Live Countdown Chip**: Displays active turn countdowns with generation state notifications (`⏳ Thinking…`).
 
-### 11. 🎲 Director Retake / Re-roll
+### 10. 🎲 Director Retake / Re-roll
 - 1-click re-roll for the latest dialogue turn (`🎲 Retake`) directly from the Topbar or inline dialogue bubble, restoring the previous snapshot and generating an alternate response.
 
-### 12. 🔮 2.5D Avatars, Emote Bubbles & Atmospheric Lighting
+### 11. 🔮 2.5D Avatars, Emote Bubbles & Atmospheric Lighting
 - Avatars feature animated overhead emote bubbles (💭, 💡, 💖, ⚡, 🤫, ☕) reflecting current emotions, secrets, or reactions.
 - Floor glow and stage spotlight colors shift dynamically with scene tension (calm cyan $\rightarrow$ electric violet $\rightarrow$ high-tension crimson).
 
@@ -80,7 +81,7 @@ Built with **FastAPI**, **LangGraph**, and **React 19**, PersonaPlay features an
 flowchart LR
     User[Director / Roleplayer] --> UI[React 19 + Vite Frontend]
     UI <-->|WebSocket: /ws| WS[FastAPI WebSocket Dispatcher]
-    UI -->|REST: /api/blueprints, /api/beats, /api/health| API[FastAPI REST API]
+    UI -->|REST: /api/blueprints, /api/health| API[FastAPI REST API]
 
     WS --> CM[ConnectionManager]
     WS --> H[Typed Inbound/Outbound Handlers]
@@ -102,8 +103,8 @@ flowchart LR
 ### Turn Lifecycle & State Merge
 1. **Turn Request**: Triggered via `next_turn`, automated timer, or manual character dialogue.
 2. **Snapshotting**: `sim.snapshot()` creates an immutable deep copy of orchestrator state.
-3. **Execution**: The turn runs in a non-blocking background task while `SimulationState.lock` protects live state for instant director actions.
-4. **Additive Merge**: Generated dialogue lines, emotion drifts, and prop changes are merged back into `sim.state` without clobbering director interventions that occurred during LLM generation.
+3. **Execution**: The turn runs in a non-blocking background task on a copied state. The simulation lock is released while the model is generating.
+4. **Snapshot-Aware Merge**: The result is merged under the state lock. Emotional, relationship, and scene tension changes apply as deltas; prop and location changes apply only if the Director did not edit the same value while generation ran.
 5. **Broadcast**: Connected clients receive typed updates (`dialogue`, `agents_update`, `vitals_update`, `monologue`, `insight_update`).
 
 ---
@@ -210,13 +211,7 @@ Open `http://localhost:5173` in your browser.
 3. Click **Inject Directive**.
 4. The event is announced on stage, and the next speaker will react to the unexpected twist immediately.
 
-### 5. Switching Between Human Mode and 20-Beat Arc
-- In the **Topbar**, look at the mode pill:
-  - Click `👤 Human Mode: ON` to switch to `🎭 Phase: COLD OPEN` (20-Beat Dramatic Arc).
-  - Click `🎭 Phase: ...` to switch back to unscripted `👤 Human Mode`.
-- You can also toggle this mode from the **Director Panel** using the Narrative Mode card.
-
-### 6. Using Auto-Play & Adjusting Pacing
+### 5. Using Auto-Play & Adjusting Pacing
 - In the Topbar, click **⚪ Auto: OFF** to toggle it to **🟢 Auto: ON**.
 - The countdown chip will tick down between turns and advance the story automatically.
 - To adjust the delay between turns, go to the **Director Panel** and choose:
@@ -225,13 +220,13 @@ Open `http://localhost:5173` in your browser.
   - ☕ **Relaxed (5.0s)**: Casual slow-burn conversation.
 - Click **⏸ Pause** in the Topbar or above the dialogue input at any time to freeze the simulation.
 
-### 7. Retaking or Re-rolling a Turn
+### 6. Retaking or Re-rolling a Turn
 - If an AI character says something you'd like to see generated differently:
   - Click the **🎲 Retake** button in the Topbar, OR
   - Hover over the latest dialogue bubble in the chat feed and click **🎲 Retake Line**.
 - The simulation rewinds that single turn and generates a fresh reply.
 
-### 8. Inspecting Backstage Psychology & Relationships
+### 7. Inspecting Backstage Psychology & Relationships
 Open the right **Backstage Panel**:
 - **💭 Psychology Tab**:
   - View real-time inner thoughts generated by characters before they speak.
@@ -284,7 +279,6 @@ ruff check .
 ```
 
 **Test Coverage Areas:**
-- `test_beats.py`: Narrative beat map contiguous turn coverage and JSON serialization.
 - `test_blueprints.py`: Scenario catalog schemas, character attributes, and REST endpoint outputs.
 - `test_models.py`: Pydantic state models, deep copy immutability, and payload validation.
 - `test_manual_dialogue.py`: User manual dialogue parsing, state synchronization, speaker cycle alternation, and background memory dispatch.

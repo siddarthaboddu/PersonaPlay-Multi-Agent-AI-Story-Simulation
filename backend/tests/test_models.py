@@ -5,7 +5,6 @@ from pydantic import ValidationError
 from app.models.payloads import (
     ForceEmotionPayload,
     InboundPayload,
-    RewindPayload,
     StartScenePayload,
 )
 from app.models.state import (
@@ -60,12 +59,6 @@ def test_emotion_vector_clamps_not_enforced_by_model():
 def test_valid_start_scene_payload():
     payload = InboundPayload.model_validate({"type": "start_scene"}).root
     assert isinstance(payload, StartScenePayload)
-
-
-def test_valid_rewind_payload_with_default():
-    payload = InboundPayload.model_validate({"type": "rewind_turns"}).root
-    assert isinstance(payload, RewindPayload)
-    assert payload.turns == 1
 
 
 def test_valid_force_emotion_payload():

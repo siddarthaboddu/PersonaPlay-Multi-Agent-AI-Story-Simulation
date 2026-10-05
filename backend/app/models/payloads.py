@@ -36,23 +36,6 @@ class GetStatePayload(BaseModel):
     type: Literal["get_state"]
 
 
-class ChangeScenePayload(BaseModel):
-    type: Literal["change_scene"]
-    location: str | None = None
-    scene_name: str | None = None
-
-
-class RewindPayload(BaseModel):
-    type: Literal["rewind_turns"]
-    turns: int = 1
-
-
-class ForceGivePropPayload(BaseModel):
-    type: Literal["force_give_prop"]
-    prop_id: str
-    owner: str
-
-
 class ConfigureScenePayload(BaseModel):
     type: Literal["configure_scene"]
     agents: list[dict[str, Any]]
@@ -60,7 +43,6 @@ class ConfigureScenePayload(BaseModel):
     location: str | None = None
     lighting: str | None = None
     props: list[dict[str, Any]] | None = None
-    phases_enabled: bool | None = None
 
 
 class CheckModelPayload(BaseModel):
@@ -95,11 +77,6 @@ class ForceRelationshipPayload(BaseModel):
     value: float
 
 
-class ForceSceneTensionPayload(BaseModel):
-    type: Literal["force_scene_tension"]
-    value: float
-
-
 class ExportScriptPayload(BaseModel):
     type: Literal["export_script"]
 
@@ -110,11 +87,6 @@ class SystemResetPayload(BaseModel):
 
 class RetakeTurnPayload(BaseModel):
     type: Literal["retake_turn"]
-
-
-class TogglePhasesPayload(BaseModel):
-    type: Literal["toggle_phases"]
-    enabled: bool
 
 
 class ManualDialoguePayload(BaseModel):
@@ -133,19 +105,14 @@ InboundMessage = (
     | PauseScenePayload
     | NextTurnPayload
     | RetakeTurnPayload
-    | TogglePhasesPayload
     | ManualDialoguePayload
     | GetStatePayload
-    | ChangeScenePayload
-    | RewindPayload
-    | ForceGivePropPayload
     | ConfigureScenePayload
     | CheckModelPayload
     | DirectorCommandPayload
     | DirectorWhisperPayload
     | ForceEmotionPayload
     | ForceRelationshipPayload
-    | ForceSceneTensionPayload
     | ExportScriptPayload
     | SystemResetPayload
 )
@@ -192,12 +159,6 @@ class VitalsUpdateMessage(BaseModel):
     vitals: dict[str, Any]
 
 
-class ImageUpdateMessage(BaseModel):
-    type: Literal["image_update"] = "image_update"
-    url: str
-    prompt: str
-
-
 class HistoryResetMessage(BaseModel):
     type: Literal["history_reset"] = "history_reset"
     messages: list[dict[str, Any]] = []
@@ -234,4 +195,3 @@ class WhisperUpdateMessage(BaseModel):
     type: Literal["whisper_update"] = "whisper_update"
     agent_id: str
     whisper: str | None = None
-

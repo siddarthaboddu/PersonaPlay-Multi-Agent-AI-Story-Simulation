@@ -5,7 +5,6 @@
  * Exposes state and action functions to the rest of the UI via context.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BEATS, getBeat, getBeatProgress } from '../constants/beats'
 
 const AUTO_TURN_DELAY = parseInt(import.meta.env.VITE_AUTO_TURN_DELAY ?? '3200', 10)
 
@@ -16,8 +15,6 @@ export function useSimulation(send, subscribe) {
   const [vitals,     setVitals]     = useState({ tension: 0.5, turn_count: 0 })
   const [world,      setWorld]      = useState({ location: 'Unknown', lighting: 'Unknown', props: [] })
   const [agents,     setAgents]     = useState([])
-  const [beats,      setBeats]      = useState(BEATS)   // hydrated from /api/beats on mount
-  const [phasesEnabled, setPhasesEnabled] = useState(false)
 
   const autoRef  = useRef(false)
   const isProcessingRef = useRef(false)
@@ -90,21 +87,6 @@ export function useSimulation(send, subscribe) {
     _setAutoDelay(ms)
   }, [])
 
-  // ── Fetch authoritative beats from backend (single source of truth) ────────
-  useEffect(() => {
-    fetch(
-      (import.meta.env.VITE_API_URL ?? 'http://localhost:8000') + '/api/beats'
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          // Convert to the [start, end, label] tuple format
-          setBeats(data.map((b) => [b.start, b.end, b.label]))
-        }
-      })
-      .catch(() => { /* fallback to local BEATS constant — non-fatal */ })
-  }, [])
-
   // ── Browser download helper ────────────────────────────────────────────────
   const triggerDownload = useCallback((filename, content) => {
     const blob = new Blob([content], { type: 'text/plain' })
@@ -134,7 +116,6 @@ export function useSimulation(send, subscribe) {
       }),
       subscribe('world_update',  (d) => setWorld(d.world)),
       subscribe('agents_update', (d) => setAgents(d.agents)),
-      subscribe('image_update',  (d) => setMessages((p) => [...p, { type: 'image', url: d.url, prompt: d.prompt }])),
       subscribe('insight_update', (d) => {
         setInsights((p) => [...p, d])
       }),
@@ -145,9 +126,6 @@ export function useSimulation(send, subscribe) {
       }),
       subscribe('vitals_update', (d) => {
         setVitals((prev) => ({ ...prev, ...d.vitals }))
-        if (d.vitals && d.vitals.phases_enabled !== undefined) {
-          setPhasesEnabled(d.vitals.phases_enabled)
-        }
         isProcessingRef.current = false
         setIsProcessing(false)
         if (autoRef.current) {
@@ -193,17 +171,13 @@ export function useSimulation(send, subscribe) {
     setIsProcessing(true)
     send({ type: 'retake_turn' })
   }, [send, clearAutoTimers])
-  const rewind        = useCallback((turns = 3) => send({ type: 'rewind_turns', turns }), [send])
   const exportScript  = useCallback(() => send({ type: 'export_script' }), [send])
-  const changeScene   = useCallback((location) => send({ type: 'change_scene', location }), [send])
   const injectChaos   = useCallback((command) => send({ type: 'director_command', command }), [send])
   const whisperDirective = useCallback((agent_id, whisper) => send({
     type: 'director_whisper',
     agent_id,
     whisper,
   }), [send])
-  const generateImage = useCallback(() => send({ type: 'director_command', command: 'generate image' }), [send])
-  const forceTension  = useCallback((value) => send({ type: 'force_scene_tension', value }), [send])
   const forceEmotion  = useCallback((agent_id, emotion, value) => send({ type: 'force_emotion', agent_id, emotion, value }), [send])
   const forceRelationship = useCallback((source_agent, target_agent, metric, value) => send({
     type: 'force_relationship',
@@ -212,7 +186,6 @@ export function useSimulation(send, subscribe) {
     metric,
     value,
   }), [send])
-  const forceGiveProp = useCallback((prop_id, owner) => send({ type: 'force_give_prop', prop_id, owner }), [send])
   const configureScene = useCallback((agents, metadata = {}) => send({
     type: 'configure_scene',
     agents,
@@ -223,10 +196,6 @@ export function useSimulation(send, subscribe) {
   }), [send])
   const systemReset   = useCallback(() => send({ type: 'system_reset' }), [send])
   const checkModel    = useCallback((agent_id, llm_config) => send({ type: 'check_model', agent_id, llm_config }), [send])
-  const togglePhases  = useCallback((enabled) => {
-    setPhasesEnabled(enabled)
-    send({ type: 'toggle_phases', enabled })
-  }, [send])
   const sendManualDialogue = useCallback((agent_id, content, trigger_response = true) => {
     setAuto(false)
     clearAutoTimers()
@@ -249,24 +218,17 @@ export function useSimulation(send, subscribe) {
     send({ type: 'pause_scene' })
   }, [setAuto, clearAutoTimers, send])
 
-  // ── Derived beat state ─────────────────────────────────────────────────────
   const turnCount    = vitals.turn_count ?? 0
-  const currentBeat  = (beats && beats.length > 0)
-    ? (beats.find(([s, e]) => turnCount >= s && turnCount <= e) ?? beats[beats.length - 1])
-    : getBeat(turnCount)
-  const beatProgress = currentBeat && currentBeat[1] >= currentBeat[0]
-    ? Math.min(1, Math.max(0, (turnCount - currentBeat[0]) / (currentBeat[1] - currentBeat[0] + 1)))
-    : getBeatProgress(turnCount)
 
   return {
     // State
-    messages, monologues, insights, vitals, world, agents, beats, phasesEnabled,
+    messages, monologues, insights, vitals, world, agents,
     auto, setAuto, autoDelay, setAutoPacing, isProcessing, autoCountdown,
-    turnCount, currentBeat, beatProgress,
+    turnCount,
     // Actions
-    startScene, stopScene, nextTurn, retakeTurn, togglePhases, rewind, exportScript,
-    changeScene, injectChaos, whisperDirective, sendManualDialogue, generateImage,
-    forceTension, forceEmotion, forceRelationship, forceGiveProp,
+    startScene, stopScene, nextTurn, retakeTurn, exportScript,
+    injectChaos, whisperDirective, sendManualDialogue,
+    forceEmotion, forceRelationship,
     configureScene, checkModel, pause, systemReset,
   }
 }
